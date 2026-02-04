@@ -1,0 +1,10 @@
+def mostrar_menu():
+    print("\n--- GERENCIADOR FINANCEIRO ---")
+    print("1. Adicionar Conta")
+    print("2. Adicionar Categoria")
+    print("3. Registrar Transação")
+    print("4. Exibir Contas")
+    print("5. Exibir Categorias")
+    print("6. Exibir Extrato")
+    print("7. Ver Total por Categoria")
+    print("0. Sair")
