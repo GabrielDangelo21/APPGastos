@@ -1,5 +1,5 @@
 from classes import Categoria, Conta, GerenciadorFinancas, Transacao
-from leitores import ler_data, ler_float, ler_int, ler_str
+from leitores import ler_data, ler_data_ou_vazio, ler_float, ler_int, ler_str
 
 banco = GerenciadorFinancas("receitas_despesas.db")
 
@@ -28,7 +28,9 @@ def menu_cadastrar_transacao():
     data = ler_data("Data: YYYY-MM-DD ")
     descricao = ler_str("Descrição: ")
     valor = ler_float("Valor: ")
+    banco.exibir_contas()
     nome_instituicao = ler_str("Banco: ")
+    banco.exibir_categorias()
     categoria_transacao = ler_str("Categoria: ")
 
     nova_transacao = Transacao(
@@ -116,10 +118,10 @@ def menu_editar_transacao():
     print("\n--- EDITAR TRANSAÇÃO ---")
     banco.exibir_transacao_com_id()
 
-    id_alvo = ler_int("\nDigite o ID da conta que deseja editar: ")
+    id_alvo = ler_int("\nDigite o ID da transação que deseja editar: ")
 
-    # Buscamos os dados atuais para mostrar ao usuário
     cursor = banco.conn.cursor()
+    # Puxamos os dados atuais
     cursor.execute(
         "SELECT data, descricao, valor, id_conta, id_categoria FROM transacao WHERE id = ?",
         (id_alvo,),
@@ -127,32 +129,57 @@ def menu_editar_transacao():
     atual = cursor.fetchone()
 
     if not atual:
-        print("❌ ID não encontrado.")
+        print("❌ ID da transação não encontrado.")
         return
 
-    print(f"\nEditando: {atual[0]}")
+    print(f"\nEditando Transação #{id_alvo}")
     print("(Pressione ENTER para manter o valor atual)")
 
-    # Lógica: se o input for vazio, usa o que já está no banco (atual[x])
-    nova_data = ler_data(f"Nova data [{atual[0]}]: ") or atual[0]
+    # 1. DATA (Usando a nova função)
+    nova_data = ler_data_ou_vazio(f"Nova data [{atual[0]}]: ") or atual[0]
+
+    # 2. DESCRIÇÃO
     nova_descricao = input(f"Nova descrição [{atual[1]}]: ") or atual[1]
 
-    # Para números, precisamos de um cuidado extra
+    # 3. VALOR
     novo_valor_str = input(f"Novo valor [{atual[2]}]: ")
     novo_valor = float(novo_valor_str.replace(",", ".")) if novo_valor_str else atual[2]
 
-    novo_id_conta_str = input(f"Novo ID Conta [{atual[3]}]: ")
-    novo_id_conta = (
-        int(novo_id_conta_str.replace(",", ".")) if novo_id_conta_str else atual[3]
-    )
+    # 4. CONTA (Com validação de existência!)
+    while True:
+        novo_id_conta_str = input(f"Novo ID Conta [{atual[3]}]: ")
+        if not novo_id_conta_str:
+            novo_id_conta = atual[3]
+            break
 
-    novo_id_categoria_str = input(f"Novo ID Categoria [{atual[4]}]: ")
-    novo_id_categoria = (
-        int(novo_id_categoria_str.replace(",", "."))
-        if novo_id_categoria_str
-        else atual[4]
-    )
+        # Verifica se esse ID de conta existe no banco
+        cursor.execute("SELECT id FROM conta WHERE id = ?", (novo_id_conta_str,))
+        if cursor.fetchone():
+            novo_id_conta = int(novo_id_conta_str)
+            break
+        else:
+            print(
+                f"❌ Erro: A conta com ID {novo_id_conta_str} não existe. Tente novamente."
+            )
 
+    # 5. CATEGORIA (Com validação de existência!)
+    while True:
+        novo_id_categoria_str = input(f"Novo ID Categoria [{atual[4]}]: ")
+        if not novo_id_categoria_str:
+            novo_id_categoria = atual[4]
+            break
+
+        # Verifica se esse ID de categoria existe no banco
+        cursor.execute(
+            "SELECT id FROM categoria WHERE id = ?", (novo_id_categoria_str,)
+        )
+        if cursor.fetchone():
+            novo_id_categoria = int(novo_id_categoria_str)
+            break
+        else:
+            print(f"❌ Erro: A categoria com ID {novo_id_categoria_str} não existe.")
+
+    # Salva tudo
     banco.editar_transacao(
         id_alvo, nova_data, nova_descricao, novo_valor, novo_id_conta, novo_id_categoria
     )

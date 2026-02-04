@@ -52,3 +52,29 @@ def ler_float(prompt: str) -> float:
                 return valor
         except ValueError:
             print("Entrada inválida. Digite um valor numérico (ex: 10.50).")
+
+
+def ler_data_ou_vazio(prompt: str):
+    """
+    Retorna uma data se o usuário digitar corretamente,
+    ou None se ele deixar em branco (pressionar Enter).
+    """
+    while True:
+        data_prompt = input(prompt)
+
+        # Se for vazio, retornamos None para indicar "não mudar nada"
+        if data_prompt.strip() == "":
+            return None
+
+        try:
+            data_format = "%Y-%m-%d"
+            data_convertida = datetime.strptime(data_prompt, data_format).date()
+
+            # Opcional: Validação de futuro (copiada do ler_data original)
+            if data_convertida > date.today():
+                print(f"Erro: Não é permitido registrar transações futuras.")
+            else:
+                return data_convertida
+
+        except ValueError:
+            print("Formato inválido. Digite YYYY-MM-DD ou Enter para manter.")
