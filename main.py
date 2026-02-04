@@ -5,9 +5,12 @@ from servicos import (
     menu_cadastrar_categoria,
     menu_cadastrar_conta,
     menu_cadastrar_transacao,
+    menu_editar_categoria,
+    menu_editar_conta,
+    menu_editar_transacao,
     menu_exibir_contas,
     menu_exibir_categoria,
-    menu_exibir_extrato,
+    menu_exibir_transacao,
     menu_total_gasto_por_categoria,
 )
 
@@ -43,9 +46,18 @@ def menu():
             menu_exibir_categoria()
 
         elif opcao == "6":
-            menu_exibir_extrato()
+            menu_exibir_transacao()
 
         elif opcao == "7":
+            menu_editar_conta()
+
+        elif opcao == "8":
+            menu_editar_categoria()
+
+        elif opcao == "9":
+            menu_editar_transacao()
+
+        elif opcao == "10":
             menu_total_gasto_por_categoria()
 
         elif opcao == "0":
