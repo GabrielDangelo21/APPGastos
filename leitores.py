@@ -43,15 +43,16 @@ def ler_int(prompt: str) -> int:
 def ler_float(prompt: str) -> float:
     while True:
         try:
-            # Substituímos a vírgula por ponto para o Python não reclamar
-            valor_texto = input(prompt).replace(",", ".")
-            valor = float(valor_texto)
+            entrada = input(prompt).strip()
+            # Remove o ponto de milhar e troca a vírgula decimal por ponto
+            entrada_limpa = entrada.replace(".", "").replace(",", ".")
+            valor = float(entrada_limpa)
             if valor <= 0:
                 print("Erro: O valor deve ser maior que zero.")
             else:
                 return valor
         except ValueError:
-            print("Entrada inválida. Digite um valor numérico (ex: 10.50).")
+            print("Entrada inválida. Digite um valor numérico (ex: 1250,50).")
 
 
 def ler_data_ou_vazio(prompt: str):

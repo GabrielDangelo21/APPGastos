@@ -5,38 +5,94 @@ banco = GerenciadorFinancas("receitas_despesas.db")
 
 
 def menu_cadastrar_conta():
-    nome_conta = ler_str("Instituição: ")
-    moeda = ler_str("Moeda: (BRL / EUR) ")
+    print("\n--- CADASTRAR NOVA CONTA ---")
+    nome_conta = ler_str("Instituição (ex: Nubank, Itaú): ").strip().title()
+
+    # Seleção de Moeda (Blindada)
+    while True:
+        print("\nQual a moeda da conta?")
+        print("1. BRL (R$)")
+        print("2. EUR (€)")
+        escolha_moeda = input("Escolha (1 ou 2): ")
+        if escolha_moeda == "1":
+            moeda = "BRL"
+            break
+        elif escolha_moeda == "2":
+            moeda = "EUR"
+            break
+        print("❌ Opção inválida!")
+
     saldo = ler_float("Saldo Inicial: ")
-    tipo = ler_str("Tipo: (Corrente / Poupança / Cartão de crédito) ")
+
+    # Seleção de Tipo (Blindada conforme sua sugestão)
+    while True:
+        print("\nTipo da Conta:")
+        print("1. Conta (Corrente/Poupança)")
+        print("2. Cartão de Crédito")
+        escolha_tipo = input("Escolha (1 ou 2): ")
+        if escolha_tipo == "1":
+            tipo = "Conta"
+            break
+        elif escolha_tipo == "2":
+            tipo = "Cartão de Crédito"
+            break
+        print("❌ Opção inválida!")
 
     nova_conta = Conta(nome_conta, moeda, saldo, tipo)
-
     banco.adicionar_conta(nova_conta)
 
 
 def menu_cadastrar_categoria():
-    nome_categoria = ler_str("Categoria: ")
-    tipo_categoria = ler_str("Tipo: (Receita / Despesa) ")
+    nome_categoria = ler_str("Categoria: ").strip().title()
+
+    # Nova lógica para o Tipo
+    while True:
+        print("\nTipo da Categoria:")
+        print("1. Receita")
+        print("2. Despesa")
+        escolha = input("Escolha (1 ou 2): ")
+
+        if escolha == "1":
+            tipo_categoria = "Receita"
+            break
+        elif escolha == "2":
+            tipo_categoria = "Despesa"
+            break
+        else:
+            print("❌ Opção inválida! Digite 1 para Receita ou 2 para Despesa.")
 
     nova_categoria = Categoria(nome_categoria, tipo_categoria)
-
     banco.adicionar_categoria(nova_categoria)
 
 
 def menu_cadastrar_transacao():
-    data = ler_data("Data: YYYY-MM-DD ")
+    print("\n--- NOVA TRANSAÇÃO ---")
+    data = ler_data("Data (YYYY-MM-DD): ")
     descricao = ler_str("Descrição: ")
     valor = ler_float("Valor: ")
-    banco.exibir_contas()
-    nome_instituicao = ler_str("Banco: ")
-    banco.exibir_categorias()
-    categoria_transacao = ler_str("Categoria: ")
 
-    nova_transacao = Transacao(
-        data, descricao, valor, nome_instituicao, categoria_transacao
-    )
+    # Seleção de Conta
+    print("\nContas disponíveis:")
+    banco.exibir_contas_com_id()
+    while True:
+        id_conta = ler_int("Digite o ID da Conta: ")
+        cursor = banco.conn.cursor()
+        cursor.execute("SELECT id FROM conta WHERE id = ?", (id_conta,))
+        if cursor.fetchone():
+            break
+        print("❌ ID de conta inválido!")
 
+    # Seleção de Categoria
+    print("\nCategorias disponíveis:")
+    banco.exibir_categorias_com_id()  # Certifique-se de ter essa função criada
+    while True:
+        id_categoria = ler_int("Digite o ID da Categoria: ")
+        cursor.execute("SELECT id FROM categoria WHERE id = ?", (id_categoria,))
+        if cursor.fetchone():
+            break
+        print("❌ ID de categoria inválido!")
+
+    nova_transacao = Transacao(data, descricao, valor, id_conta, id_categoria)
     banco.adicionar_transacao(nova_transacao)
 
 
@@ -44,11 +100,11 @@ def menu_exibir_contas():
     banco.exibir_contas()
 
 
-def menu_exibir_categoria():
+def menu_exibir_categorias():
     banco.exibir_categorias()
 
 
-def menu_exibir_transacao():
+def menu_exibir_transacoes():
     banco.exibir_transacao()
 
 
@@ -58,7 +114,7 @@ def menu_editar_conta():
 
     id_alvo = ler_int("\nDigite o ID da conta que deseja editar: ")
 
-    # Buscamos os dados atuais para mostrar ao usuário
+    # 1. Procurar os dados atuais no banco para mostrar ao utilizador
     cursor = banco.conn.cursor()
     cursor.execute(
         "SELECT nome_instituicao, moeda, saldo_inicial, tipo_conta FROM conta WHERE id = ?",
@@ -67,51 +123,101 @@ def menu_editar_conta():
     atual = cursor.fetchone()
 
     if not atual:
-        print("❌ ID não encontrado.")
+        print("❌ Erro: Conta com ID não encontrada.")
         return
 
     print(f"\nEditando: {atual[0]}")
     print("(Pressione ENTER para manter o valor atual)")
 
-    # Lógica: se o input for vazio, usa o que já está no banco (atual[x])
-    novo_nome = input(f"Novo nome [{atual[0]}]: ") or atual[0]
-    nova_moeda = input(f"Nova moeda [{atual[1]}]: ") or atual[1]
+    # 2. NOME (Texto livre)
+    novo_nome = input(f"Novo nome [{atual[0]}]: ").strip().title() or atual[0]
 
-    # Para números, precisamos de um cuidado extra
+    # 3. MOEDA (Escolha numerada)
+    while True:
+        print(f"Moeda atual: {atual[1]}")
+        print("1. BRL (R$) | 2. EUR (€)")
+        escolha_m = input(f"Nova moeda (ou Enter para manter): ")
+        if not escolha_m:
+            nova_moeda = atual[1]
+            break
+        elif escolha_m == "1":
+            nova_moeda = "BRL"
+            break
+        elif escolha_m == "2":
+            nova_moeda = "EUR"
+            break
+        print("❌ Opção inválida! Escolha 1, 2 ou Enter.")
+
+    # 4. SALDO (Número)
     novo_saldo_str = input(f"Novo saldo [{atual[2]}]: ")
-    novo_saldo = float(novo_saldo_str.replace(",", ".")) if novo_saldo_str else atual[2]
+    nova_saldo = float(novo_saldo_str.replace(",", ".")) if novo_saldo_str else atual[2]
 
-    novo_tipo = input(f"Novo tipo [{atual[3]}]: ") or atual[3]
+    # 5. TIPO (Escolha numerada)
+    while True:
+        print(f"Tipo atual: {atual[3]}")
+        print("1. Conta (Corrente/Poupança) | 2. Cartão de Crédito")
+        escolha_t = input(f"Novo tipo (ou Enter para manter): ")
+        if not escolha_t:
+            novo_tipo = atual[3]
+            break
+        elif escolha_t == "1":
+            novo_tipo = "Conta"
+            break
+        elif escolha_t == "2":
+            novo_tipo = "Cartão de Crédito"
+            break
+        print("❌ Opção inválida! Escolha 1, 2 ou Enter.")
 
-    banco.editar_conta(id_alvo, novo_nome, nova_moeda, novo_saldo, novo_tipo)
+    # 6. ENVIAR PARA O BANCO
+    banco.atualizar_conta(id_alvo, novo_nome, nova_moeda, nova_saldo, novo_tipo)
 
 
 def menu_editar_categoria():
     print("\n--- EDITAR CATEGORIA ---")
+    # Exibe as categorias com ID para o utilizador saber qual escolher
     banco.exibir_categorias_com_id()
 
     id_alvo = ler_int("\nDigite o ID da categoria que deseja editar: ")
 
-    # Buscamos os dados atuais para mostrar ao usuário
+    # Busca os dados atuais
     cursor = banco.conn.cursor()
     cursor.execute(
-        "SELECT nome_categoria, tipo_categoria FROM categoria WHERE id = ?",
-        (id_alvo,),
+        "SELECT nome_categoria, tipo_categoria FROM categoria WHERE id = ?", (id_alvo,)
     )
     atual = cursor.fetchone()
 
     if not atual:
-        print("❌ ID não encontrado.")
+        print("❌ Erro: Categoria com ID não encontrada.")
         return
 
-    print(f"\nEditando: {atual[0]}")
+    print(f"\nEditando Categoria: {atual[0]}")
     print("(Pressione ENTER para manter o valor atual)")
 
-    # Lógica: se o input for vazio, usa o que já está no banco (atual[x])
-    novo_nome = input(f"Nova categoria [{atual[0]}]: ") or atual[0]
-    novo_tipo = input(f"Novo tipo [{atual[1]}]: (Receita / Despesa) ") or atual[1]
+    # 1. NOVO NOME
+    novo_nome = input(f"Novo nome [{atual[0]}]: ").strip().title() or atual[0]
 
-    banco.editar_categoria(id_alvo, novo_nome, novo_tipo)
+    # 2. NOVO TIPO (Lógica de 1 ou 2)
+    while True:
+        print(f"Tipo atual: {atual[1]}")
+        print("1. Receita")
+        print("2. Despesa")
+        escolha = input(f"Novo tipo (ou Enter para manter): ")
+
+        if not escolha:
+            novo_tipo = atual[1]
+            break
+        elif escolha == "1":
+            novo_tipo = "Receita"
+            break
+        elif escolha == "2":
+            novo_tipo = "Despesa"
+            break
+        else:
+            print("❌ Opção inválida! Digite 1, 2 ou pressione Enter.")
+
+    # 3. ATUALIZAR NO BANCO
+    # Certifica-te que tens o método atualizar_categoria no teu classes.py
+    banco.atualizar_categoria(id_alvo, novo_nome, novo_tipo)
 
 
 def menu_editar_transacao():
@@ -185,7 +291,30 @@ def menu_editar_transacao():
     )
 
 
+def menu_excluir_transacao():
+    print("\n--- EXCLUIR TRANSAÇÃO ---")
+    banco.exibir_transacao_com_id()  # Mostra a lista para o usuário saber o ID
+
+    id_alvo = ler_int("\nDigite o ID da transação que deseja excluir: ")
+
+    # Confirmação de segurança
+    certeza = input(
+        f"Tem certeza que deseja apagar a transação {id_alvo}? (S/N): "
+    ).upper()
+
+    if certeza == "S":
+        banco.excluir_transacao(id_alvo)
+    else:
+        print("Operação cancelada.")
+
+
 def menu_total_gasto_por_categoria():
-    banco.listar_nome_categorias()
-    categoria = ler_str("Escolha a categoria: ")
-    banco.total_gastos_por_categoria(categoria)
+    print("\n--- TOTAL DE GASTOS POR CATEGORIA ---")
+    banco.exibir_categorias_com_id()  # O utilizador vê os IDs
+    id_cat = ler_int("\nDigite o ID da categoria: ")
+
+    # Buscamos o nome apenas para mostrar no ecrã
+    nome_cat = banco.buscar_nome_categoria_por_id(id_cat)
+
+    # Chama a função de soma que já criámos antes
+    banco.total_gastos_por_categoria(id_cat, nome_cat)

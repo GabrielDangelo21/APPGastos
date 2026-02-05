@@ -1,6 +1,11 @@
 import locale
 from leitores import ler_str
-from mostradores import mostrar_menu
+from mostradores import (
+    mostrar_menu,
+    mostrar_menu_categorias,
+    mostrar_menu_contas,
+    mostrar_menu_transacoes,
+)
 from servicos import (
     menu_cadastrar_categoria,
     menu_cadastrar_conta,
@@ -8,9 +13,10 @@ from servicos import (
     menu_editar_categoria,
     menu_editar_conta,
     menu_editar_transacao,
+    menu_excluir_transacao,
+    menu_exibir_categorias,
     menu_exibir_contas,
-    menu_exibir_categoria,
-    menu_exibir_transacao,
+    menu_exibir_transacoes,
     menu_total_gasto_por_categoria,
 )
 
@@ -31,34 +37,47 @@ def menu():
         opcao = ler_str("Escolha uma opção: ")
 
         if opcao == "1":
-            menu_cadastrar_conta()
+            mostrar_menu_contas()
+            opcao_contas = ler_str("Escolha uma opção: ")
+            if opcao_contas == "1":
+                menu_cadastrar_conta()
+            elif opcao_contas == "2":
+                menu_exibir_contas()
+            elif opcao_contas == "3":
+                menu_editar_conta()
+            elif opcao_contas == "0":
+                print("Saindo...")
+                break
 
         elif opcao == "2":
-            menu_cadastrar_categoria()
+            mostrar_menu_categorias()
+            opcao_categorias = ler_str("Escolha uma opção: ")
+            if opcao_categorias == "1":
+                menu_cadastrar_categoria()
+            elif opcao_categorias == "2":
+                menu_exibir_categorias()
+            elif opcao_categorias == "3":
+                menu_editar_categoria()
+            elif opcao_categorias == "4":
+                menu_total_gasto_por_categoria()
+            elif opcao_categorias == "0":
+                print("Saindo...")
+                break
 
         elif opcao == "3":
-            menu_cadastrar_transacao()
-
-        elif opcao == "4":
-            menu_exibir_contas()
-
-        elif opcao == "5":
-            menu_exibir_categoria()
-
-        elif opcao == "6":
-            menu_exibir_transacao()
-
-        elif opcao == "7":
-            menu_editar_conta()
-
-        elif opcao == "8":
-            menu_editar_categoria()
-
-        elif opcao == "9":
-            menu_editar_transacao()
-
-        elif opcao == "10":
-            menu_total_gasto_por_categoria()
+            mostrar_menu_transacoes()
+            opcao_transacoes = ler_str("Escolha uma opção: ")
+            if opcao_transacoes == "1":
+                menu_cadastrar_transacao()
+            elif opcao_transacoes == "2":
+                menu_exibir_transacoes()
+            elif opcao_transacoes == "3":
+                menu_editar_transacao()
+            elif opcao_transacoes == "4":
+                menu_excluir_transacao()
+            elif opcao_transacoes == "0":
+                print("Saindo...")
+                break
 
         elif opcao == "0":
             print("Saindo...")
