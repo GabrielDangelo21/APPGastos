@@ -35,7 +35,7 @@ class Transacao:
 class GerenciadorFinancas:
     def __init__(self, nome_banco):
         self.nome_banco = nome_banco
-        self.conn = sqlite3.connect(self.nome_banco)
+        self.conn = sqlite3.connect(self.nome_banco, check_same_thread=False)
         self.conn.execute("PRAGMA foreign_keys = ON;")
         self.criando_tabela()
 
