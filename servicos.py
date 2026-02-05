@@ -169,7 +169,7 @@ def menu_editar_conta():
         print("❌ Opção inválida! Escolha 1, 2 ou Enter.")
 
     # 6. ENVIAR PARA O BANCO
-    banco.atualizar_conta(id_alvo, novo_nome, nova_moeda, nova_saldo, novo_tipo)
+    banco.editar_conta(id_alvo, novo_nome, nova_moeda, nova_saldo, novo_tipo)
 
 
 def menu_editar_categoria():
@@ -217,7 +217,7 @@ def menu_editar_categoria():
 
     # 3. ATUALIZAR NO BANCO
     # Certifica-te que tens o método atualizar_categoria no teu classes.py
-    banco.atualizar_categoria(id_alvo, novo_nome, novo_tipo)
+    banco.editar_categoria(id_alvo, novo_nome, novo_tipo)
 
 
 def menu_editar_transacao():

@@ -293,8 +293,8 @@ class GerenciadorFinancas:
                 transacao.data,
                 transacao.descricao,
                 transacao.valor,
-                transacao.conta,  # Aqui agora já é o ID
-                transacao.categoria,  # Aqui agora já é o ID
+                transacao.id_conta,  # Aqui agora já é o ID
+                transacao.id_categoria,  # Aqui agora já é o ID
             ),
         )
         self.conn.commit()

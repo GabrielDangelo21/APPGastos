@@ -37,50 +37,53 @@ def menu():
         opcao = ler_str("Escolha uma opção: ")
 
         if opcao == "1":
-            mostrar_menu_contas()
-            opcao_contas = ler_str("Escolha uma opção: ")
-            if opcao_contas == "1":
-                menu_cadastrar_conta()
-            elif opcao_contas == "2":
-                menu_exibir_contas()
-            elif opcao_contas == "3":
-                menu_editar_conta()
-            elif opcao_contas == "0":
-                print("Saindo...")
-                break
+            while True:
+                mostrar_menu_contas()
+                opcao_contas = ler_str("Escolha uma opção: ")
+                if opcao_contas == "1":
+                    menu_cadastrar_conta()
+                elif opcao_contas == "2":
+                    menu_exibir_contas()
+                elif opcao_contas == "3":
+                    menu_editar_conta()
+                elif opcao_contas == "0":
+                    print("Voltando ao menu principal...")
+                    break
 
         elif opcao == "2":
-            mostrar_menu_categorias()
-            opcao_categorias = ler_str("Escolha uma opção: ")
-            if opcao_categorias == "1":
-                menu_cadastrar_categoria()
-            elif opcao_categorias == "2":
-                menu_exibir_categorias()
-            elif opcao_categorias == "3":
-                menu_editar_categoria()
-            elif opcao_categorias == "4":
-                menu_total_gasto_por_categoria()
-            elif opcao_categorias == "0":
-                print("Saindo...")
-                break
+            while True:
+                mostrar_menu_categorias()
+                opcao_categorias = ler_str("Escolha uma opção: ")
+                if opcao_categorias == "1":
+                    menu_cadastrar_categoria()
+                elif opcao_categorias == "2":
+                    menu_exibir_categorias()
+                elif opcao_categorias == "3":
+                    menu_editar_categoria()
+                elif opcao_categorias == "4":
+                    menu_total_gasto_por_categoria()
+                elif opcao_categorias == "0":
+                    print("Voltando ao menu principal...")
+                    break
 
         elif opcao == "3":
-            mostrar_menu_transacoes()
-            opcao_transacoes = ler_str("Escolha uma opção: ")
-            if opcao_transacoes == "1":
-                menu_cadastrar_transacao()
-            elif opcao_transacoes == "2":
-                menu_exibir_transacoes()
-            elif opcao_transacoes == "3":
-                menu_editar_transacao()
-            elif opcao_transacoes == "4":
-                menu_excluir_transacao()
-            elif opcao_transacoes == "0":
-                print("Saindo...")
-                break
+            while True:
+                mostrar_menu_transacoes()
+                opcao_transacoes = ler_str("Escolha uma opção: ")
+                if opcao_transacoes == "1":
+                    menu_cadastrar_transacao()
+                elif opcao_transacoes == "2":
+                    menu_exibir_transacoes()
+                elif opcao_transacoes == "3":
+                    menu_editar_transacao()
+                elif opcao_transacoes == "4":
+                    menu_excluir_transacao()
+                elif opcao_transacoes == "0":
+                    print("Voltando ao menu principal...")
+                    break
 
         elif opcao == "0":
-            print("Saindo...")
+            print("Encerrando o sistema. Até logo!")
             break
 
 
