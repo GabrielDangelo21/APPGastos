@@ -36,6 +36,7 @@ class GerenciadorFinancas:
     def __init__(self, nome_banco):
         self.nome_banco = nome_banco
         self.conn = sqlite3.connect(self.nome_banco)
+        self.conn.execute("PRAGMA foreign_keys = ON;")
         self.criando_tabela()
 
     def formatar_moeda(self, valor, moeda_codigo):
