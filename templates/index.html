@@ -13,24 +13,8 @@
     <div class="container">
         <h1>💸 Meu Controle Financeiro</h1>
 
-        <div class="card-section">
-            <div class="card-summary">
-                <i class="fas fa-money-bill-wave icon-income"></i>
-                <p>Receitas</p>
-                <span id="total-receitas" class="value-income">R$ 0,00</span>
-            </div>
-            <div class="card-summary">
-                <i class="fas fa-shopping-basket icon-expense"></i>
-                <p>Despesas</p>
-                <span id="total-despesas" class="value-expense">R$ 0,00</span>
-            </div>
-            <div class="card-summary">
-                <i class="fas fa-balance-scale icon-balance"></i>
-                <p>Saldo Atual</p>
-                <span id="saldo-atual" class="value-balance">R$ 0,00</span>
-            </div>
+        <div id="resumo-container">
         </div>
-
         <div class="card add-transaction-section">
             <h2><i class="fas fa-plus-circle"></i> Adicionar Nova Transação</h2>
             <form id="transaction-form">
@@ -78,7 +62,13 @@
             style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px;">
 
             <div class="card">
-                <h2><i class="fas fa-university"></i> Nova Conta</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 0; border: none;"><i class="fas fa-university"></i> Nova Conta</h2>
+                    <button type="button" onclick="listarTodasContas()" class="btn-action"
+                        style="color: var(--accent);">
+                        <i class="fas fa-eye"></i> Ver Todas
+                    </button>
+                </div>
                 <form id="form-conta">
                     <div class="input-group">
                         <label>Instituição:</label>
@@ -112,7 +102,13 @@
             </div>
 
             <div class="card">
-                <h2><i class="fas fa-tags"></i> Nova Categoria</h2>
+                <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                    <h2 style="margin-bottom: 0; border: none;"><i class="fas fa-tags"></i> Nova Categoria</h2>
+                    <button type="button" onclick="listarTodasCategorias()" class="btn-action"
+                        style="color: var(--ok);">
+                        <i class="fas fa-eye"></i> Ver Todas
+                    </button>
+                </div>
                 <form id="form-categoria">
                     <div class="input-group">
                         <label>Nome da Categoria:</label>
@@ -132,7 +128,7 @@
             </div>
         </div>
 
-        <div class="card transaction-list-section">
+        <div class="card transaction-list-section" style="display: none;">
             <h2><i class="fas fa-list"></i> Histórico de Transações</h2>
             <table id="transaction-table">
                 <thead>
@@ -160,18 +156,115 @@
             <h2 id="modal-title">Editar Registro</h2>
             <form id="form-edit">
                 <input type="hidden" id="edit-id">
-                <div id="edit-fields">
-                </div>
+                <div id="edit-fields"></div>
+
                 <div style="display: flex; gap: 10px; margin-top: 20px;">
                     <button type="submit" class="btn-submit">Salvar Alterações</button>
                     <button type="button" onclick="fecharModal()" class="btn-submit"
-                        style="background: var(--muted2);">Cancelar</button>
+                        style="background: gray;">Cancelar</button>
                 </div>
             </form>
         </div>
     </div>
-
     <script src="{{ url_for('static', filename='app.js') }}"></script>
+    <div id="modal-detalhes" class="modal-overlay" style="display: none;">
+        <div class="card modal-content list-modal">
+            <div class="modal-header">
+                <h2 id="detalhe-titulo-moeda">Transações</h2>
+                <button onclick="fecharModalDetalhes()" class="btn-close">&times;</button>
+            </div>
+            <div class="table-container">
+                <table id="table-detalhes">
+                    <thead>
+                        <tr>
+                            <th>Data</th>
+                            <th>Descrição</th>
+                            <th>Valor</th>
+                            <th>Categoria</th>
+                        </tr>
+                    </thead>
+                    <tbody id="body-detalhes"></tbody>
+                </table>
+            </div>
+        </div>
+    </div>
+    <div id="modal-contas" class="modal-overlay" style="display: none;">
+        <div class="card list-modal">
+            <div class="modal-header">
+                <h2>Gerenciar Contas</h2>
+                <button class="btn-close" onclick="fecharModalContas()">&times;</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Instituição</th>
+                        <th>Moeda</th>
+                        <th>Saldo</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="body-contas">
+                </tbody>
+            </table>
+        </div>
+    </div>
+
+    <div id="modal-categorias" class="modal-overlay" style="display: none;">
+        <div class="card list-modal">
+            <div class="modal-header">
+                <h2>Gerenciar Categorias</h2>
+                <button class="btn-close" onclick="fecharModalCategorias()">&times;</button>
+            </div>
+            <table>
+                <thead>
+                    <tr>
+                        <th>ID</th>
+                        <th>Nome da Categoria</th>
+                        <th>Ações</th>
+                    </tr>
+                </thead>
+                <tbody id="body-categorias">
+                </tbody>
+            </table>
+        </div>
+    </div>
+    <div id="modal-edit-conta" class="modal-overlay" style="display: none;">
+        <div class="card add-transaction-section" style="width: 400px;">
+            <div class="modal-header">
+                <h2><i class="fas fa-edit"></i> Editar Conta</h2>
+                <button class="btn-close" onclick="fecharModalEditConta()">&times;</button>
+            </div>
+            <form id="form-edit-conta">
+                <input type="hidden" id="edit-conta-id">
+                <div class="input-group">
+                    <label>Instituição:</label>
+                    <input type="text" id="edit-conta-nome" required>
+                </div>
+                <div class="input-group">
+                    <label>Moeda:</label>
+                    <select id="edit-conta-moeda">
+                        <option value="BRL">BRL (R$)</option>
+                        <option value="EUR">EUR (€)</option>
+                    </select>
+                </div>
+                <div class="input-group">
+                    <label>Saldo Inicial:</label>
+                    <input type="number" id="edit-conta-saldo" step="0.01" required>
+                </div>
+                <div class="input-group">
+                    <label>Tipo:</label>
+                    <select id="edit-conta-tipo">
+                        <option value="Conta">Conta (Corrente/Poupança)</option>
+                        <option value="Cartão de Crédito">Cartão de Crédito</option>
+                    </select>
+                </div>
+                <button type="submit" class="btn-action ok" style="width: 100%; margin-top: 15px;">
+                    Salvar Alterações
+                </button>
+            </form>
+        </div>
+    </div>
 </body>
 
 </html>
