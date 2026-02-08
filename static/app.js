@@ -1,85 +1,57 @@
-"use strict";
+document.addEventListener('DOMContentLoaded', () => {
+    // 1. Pega a data de hoje no formato AAAA-MM-DD
+    const hoje = new Date().toISOString().split('T')[0];
 
-const transactionForm = document.getElementById("transaction-form");
-const selectConta = document.getElementById("conta");
-const selectCategoria = document.getElementById("categoria");
-let transacoesGlobais = [];
+    // 2. Configura o input de Nova Transação
+    const dataInput = document.getElementById('data');
+    if (dataInput) {
+        dataInput.value = hoje; // Define hoje como padrão
+        dataInput.max = hoje;   // BLOQUEIA datas futuras no calendário
+    }
 
-/* ---------- Funções de Carga ---------- */
+    // 3. Configura o input de Editar Transação (para não burlarem na edição)
+    const editDataInput = document.getElementById('edit-trans-data');
+    if (editDataInput) {
+        editDataInput.max = hoje; // BLOQUEIA datas futuras na edição também
+    }
 
-/* ---------- 1. CORREÇÃO: Carregar Contas e Categorias nos Selects ---------- */
-async function carregarMetadados() {
+    // Carrega os dados iniciais
+    carregarCategorias();
+    carregarTransacoes();
+});
+
+/* --- CATEGORIAS --- */
+async function carregarCategorias() {
     try {
-        // Busca as Contas do Python
-        const resContas = await fetch('/api/contas');
-        const contas = await resContas.json();
-        const selectContas = document.getElementById('conta'); // ID correto do HTML
+        const res = await fetch('/api/categorias');
+        const categorias = await res.json();
 
-        if (selectContas) {
-            selectContas.innerHTML = '<option value="">Selecione a Conta</option>';
-            contas.forEach(c => {
-                selectContas.innerHTML += `<option value="${c.id}">${c.nome_instituicao} (${c.moeda})</option>`;
-            });
-        }
+        const select = document.getElementById('categoria');
 
-        // Busca as Categorias do Python
-        const resCats = await fetch('/api/categorias');
-        const categorias = await resCats.json();
-        const selectCats = document.getElementById('categoria'); // ID correto do HTML
-
-        if (selectCats) {
-            selectCats.innerHTML = '<option value="">Selecione a Categoria</option>';
-            categorias.forEach(cat => {
-                selectCats.innerHTML += `<option value="${cat.id}">${cat.nome_categoria}</option>`;
-            });
-        }
+        // Limpa e preenche o Select
+        select.innerHTML = '<option value="">Selecione...</option>';
+        categorias.forEach(cat => {
+            select.innerHTML += `<option value="${cat.id}">${cat.nome_categoria} (${cat.tipo})</option>`;
+        });
     } catch (err) {
-        console.error("Erro ao carregar metadados:", err);
+        console.error("Erro categorias:", err);
     }
 }
 
-/* ---------- 2. NOVO: Listener para Salvar Nova Conta ---------- */
-const formConta = document.getElementById('form-conta');
-if (formConta) {
-    formConta.addEventListener('submit', async (e) => {
-        e.preventDefault();
+// Salvar Nova Categoria (Agora no Card)
+const formCat = document.getElementById('form-categoria');
+if (formCat) {
+    formCat.addEventListener('submit', async (e) => {
+        e.preventDefault(); // Impede a página de recarregar
+        console.log("Tentando salvar categoria...");
+
+        // Pega os valores pelos IDs que definimos no HTML acima
+        const nomeInput = document.getElementById('cat-nome');
+        const tipoInput = document.getElementById('cat-tipo');
 
         const dados = {
-            nome: document.getElementById('conta-nome').value,
-            moeda: document.getElementById('conta-moeda').value,
-            saldo: parseFloat(document.getElementById('conta-saldo').value),
-            tipo: document.getElementById('conta-tipo').value
-        };
-
-        try {
-            const res = await fetch('/api/contas', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dados)
-            });
-
-            if (res.ok) {
-                alert("✅ Conta cadastrada com sucesso!");
-                formConta.reset();
-                await carregarMetadados(); // Atualiza a lista no formulário de transações
-            } else {
-                alert("❌ Erro ao salvar conta.");
-            }
-        } catch (err) {
-            console.error("Erro:", err);
-        }
-    });
-}
-
-/* ---------- 3. NOVO: Listener para Salvar Nova Categoria ---------- */
-const formCategoria = document.getElementById('form-categoria');
-if (formCategoria) {
-    formCategoria.addEventListener('submit', async (e) => {
-        e.preventDefault();
-
-        const dados = {
-            nome: document.getElementById('cat-nome').value,
-            tipo: document.getElementById('cat-tipo').value
+            nome: nomeInput.value,
+            tipo: tipoInput.value
         };
 
         try {
@@ -90,517 +62,424 @@ if (formCategoria) {
             });
 
             if (res.ok) {
-                alert("✅ Categoria cadastrada!");
-                formCategoria.reset();
-                await carregarMetadados();
+                nomeInput.value = ''; // Limpa o campo
+                alert("Categoria criada com sucesso!");
+                await carregarCategorias(); // Atualiza o select ao lado
             } else {
-                alert("❌ Erro ao salvar categoria.");
+                const erro = await res.json();
+                alert("Erro: " + erro.erro);
             }
         } catch (err) {
-            console.error("Erro:", err);
+            console.error(err);
+            alert("Erro de conexão ao salvar categoria.");
         }
     });
 }
+
+
+
+/* --- TRANSAÇÕES (MANTIDO IGUAL) --- */
+let transacoesGlobais = []; // Variável para guardar os dados e filtrar depois
 
 async function carregarTransacoes() {
     try {
         const res = await fetch('/api/transacoes');
-        const transacoes = await res.json();
+        transacoesGlobais = await res.json();
 
-        // ESSENCIAL: Guardamos os dados na variável global para os modais usarem
-        transacoesGlobais = transacoes;
+        let despesasBRL = 0;
+        let despesasEUR = 0;
 
-        // Atualizamos apenas os cards de resumo (o que você vê na home)
-        atualizarResumo(transacoes);
-
-        // A tabela principal não é chamada aqui para manter a home limpa
-        // Mas os dados estão prontos para quando você clicar nos cards!
-    } catch (err) {
-        console.error("Erro ao buscar transações:", err);
-    }
-}
-
-/* ---------- Listagem de Contas Corrigida ---------- */
-
-async function listarTodasContas() {
-    // 1. PRIMEIRO abrimos o modal para o usuário não achar que travou
-    const modal = document.getElementById('modal-contas');
-    if (modal) modal.style.display = 'flex';
-
-    try {
-        const res = await fetch('/api/contas');
-        const contas = await res.json();
-
-        const tbody = document.getElementById('body-contas');
-        if (!tbody) return;
-        tbody.innerHTML = "";
-
-        contas.forEach(c => {
-            const idReal = c.id;
-            const saldoInicial = parseFloat(c.saldo_inicial || 0);
-
-            // CÁLCULO SEGURO: Se transacoesGlobais não existir, o saldo é apenas o inicial
-            let somaTransacoes = 0;
-            if (window.transacoesGlobais && Array.isArray(window.transacoesGlobais)) {
-                somaTransacoes = window.transacoesGlobais
-                    .filter(t => t.id_conta == idReal)
-                    .reduce((acc, t) => acc + parseFloat(t.valor || 0), 0);
+        transacoesGlobais.forEach(t => {
+            const val = parseFloat(t.valor);
+            if (val < 0) { // Apenas despesas
+                if (t.moeda === 'BRL') despesasBRL += Math.abs(val);
+                else if (t.moeda === 'EUR') despesasEUR += Math.abs(val);
             }
-
-            const saldoTotal = saldoInicial + somaTransacoes;
-
-            const tr = document.createElement("tr");
-            tr.innerHTML = `
-                <td>${c.id}</td>
-                <td>${c.nome_instituicao}</td>
-                <td><span class="currency-badge">${c.moeda}</span></td>
-                <td style="text-align: right;">${saldoTotal.toFixed(2)}</td>
-                <td>
-                    <button class="btn-action edit" onclick="abrirModalEditarConta(${c.id}, '${c.nome_instituicao}', '${c.moeda}', ${c.saldo_inicial}, '${c.tipo_conta}')">
-                        <i class="fas fa-edit"></i>
-                    </button>
-                    <button class="btn-action delete" onclick="excluirConta(${c.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-    } catch (err) {
-        console.error("Erro ao carregar lista de contas:", err);
-    }
-}
-
-async function salvarNovaConta(event) {
-    if (event) event.preventDefault(); // Impede a página de dar refresh
-
-    const dados = {
-        nome: document.getElementById('nome_instituicao').value,
-        moeda: document.getElementById('moeda_conta').value,
-        saldo: document.getElementById('saldo_inicial').value,
-        tipo: document.getElementById('tipo_conta').value
-    };
-
-    try {
-        const res = await fetch('/api/contas', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify(dados)
         });
 
-        if (res.ok) {
-            alert("Conta salva com sucesso!");
-            fecharModalCadastroConta(); // Feche seu modal de cadastro
-            await listarTodasContas();  // Recarrega a lista na tela
-        } else {
-            const erro = await res.json();
-            alert("Erro do servidor: " + erro.erro);
-        }
-    } catch (err) {
-        console.error("Erro na requisição:", err);
-    }
-}
+        document.getElementById('total-despesas-brl').innerText = `R$ ${despesasBRL.toFixed(2)}`;
+        document.getElementById('total-despesas-eur').innerText = `${despesasEUR.toFixed(2)} €`;
 
-/* ---------- Listagem de Categorias Corrigida ---------- */
-
-async function listarTodasCategorias() {
-    try {
-        const res = await fetch('/api/categorias');
-        const categorias = await res.json();
-        const modal = document.getElementById('modal-categorias');
-        const tbody = document.getElementById('body-categorias');
-
-        if (!modal || !tbody) return;
-
-        tbody.innerHTML = "";
-        categorias.forEach(cat => {
-            const tr = document.createElement("tr"); // CRIA A LINHA
-            tr.innerHTML = `
-                <td>${cat.id}</td>
-                <td>${cat.nome_categoria}</td>
-                <td>
-                    <button class="btn-action delete" onclick="excluirCategoria(${cat.id})">
-                        <i class="fas fa-trash"></i>
-                    </button>
-                </td>
-            `;
-            tbody.appendChild(tr);
-        });
-
-        modal.style.display = 'flex';
     } catch (err) { console.error(err); }
 }
 
-/* --- Abre o modal e preenche os campos com os dados atuais --- */
-function abrirModalEditarConta(id, nome, moeda, saldo, tipo) {
-    document.getElementById('edit-conta-id').value = id;
-    document.getElementById('edit-conta-nome').value = nome;
-    document.getElementById('edit-conta-moeda').value = moeda;
-    document.getElementById('edit-conta-saldo').value = saldo;
-    document.getElementById('edit-conta-tipo').value = tipo;
+// Função para abrir o modal filtrado
+function abrirModalTransacoesMoeda(moeda) {
+    const modal = document.getElementById('modal-transacoes-moeda');
+    const titulo = document.getElementById('titulo-modal-moeda');
+    const corpo = document.getElementById('corpo-tabela-moeda');
 
-    document.getElementById('modal-edit-conta').style.display = 'flex';
+    titulo.innerText = `Despesas em ${moeda}`;
+    corpo.innerHTML = '';
+
+    // Filtra apenas as despesas da moeda clicada
+    const filtradas = transacoesGlobais.filter(t => t.moeda === moeda && t.valor < 0);
+
+    if (filtradas.length === 0) {
+        corpo.innerHTML = '<tr><td colspan="5" style="padding:20px; text-align:center;">Nenhuma despesa encontrada.</td></tr>';
+    } else {
+        filtradas.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+
+            // Aqui garantimos que os botões sejam desenhados
+            tr.innerHTML = `
+                <td style="padding: 10px;">${new Date(t.data).toLocaleDateString('pt-BR')}</td>
+                <td>${t.descricao}</td>
+                <td><span class="badge badge-despesa">${t.categoria}</span></td>
+                <td style="color: #FF6B6B;">
+                    ${moeda === 'BRL' ? 'R$' : '€'} ${Math.abs(t.valor).toFixed(2)}
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn-action edit" onclick="fecharEEditar(${JSON.stringify(t).replace(/"/g, '&quot;')})" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action delete" onclick="excluirTransacao(${t.id})" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            corpo.appendChild(tr);
+        });
+    }
+    modal.style.display = 'flex';
+}
+// Função auxiliar para fechar o modal de lista antes de abrir o de edição
+function fecharEEditar(transacao) {
+    document.getElementById('modal-transacoes-moeda').style.display = 'none';
+    prepararEdicaoTransacao(transacao);
 }
 
-function fecharModalEditConta() {
-    document.getElementById('modal-edit-conta').style.display = 'none';
-}
-
-/* --- Escutador para o formulário de edição --- */
-const formEditConta = document.getElementById('form-edit-conta');
-if (formEditConta) {
-    formEditConta.addEventListener('submit', async (e) => {
+/* --- SALVAR NOVA TRANSAÇÃO --- */
+const formTrans = document.getElementById('form-transacao');
+if (formTrans) {
+    formTrans.addEventListener('submit', async (e) => {
         e.preventDefault();
-        const id = document.getElementById('edit-conta-id').value;
+
+        // --- NOVA VALIDAÇÃO DE DATA FUTURA ---
+        const inputData = document.getElementById('data').value;
+        const hoje = new Date().toISOString().split('T')[0];
+
+        if (inputData > hoje) {
+            alert("⚠️ Não é permitido adicionar transações com data futura!");
+            return; // Para o código aqui e não salva nada
+        }
+        // -------------------------------------
+
+        console.log("Botão de transação clicado!");
+
+        const selectCat = document.getElementById('categoria');
+
+        // Verifica se o usuário selecionou uma categoria válida
+        if (!selectCat.value) {
+            alert("Selecione uma categoria!");
+            return;
+        }
+
+        // Lógica para definir se é negativo (Despesa) ou positivo (Receita)
+        const textoCategoria = selectCat.options[selectCat.selectedIndex].text;
+        const ehDespesa = textoCategoria.includes('Despesa'); // Procura a palavra "Despesa" no texto
+
+        let valorInput = parseFloat(document.getElementById('valor').value);
+        if (ehDespesa) valorInput = -Math.abs(valorInput);
+        else valorInput = Math.abs(valorInput);
 
         const dados = {
-            nome: document.getElementById('edit-conta-nome').value,
-            moeda: document.getElementById('edit-conta-moeda').value,
-            saldo: parseFloat(document.getElementById('edit-conta-saldo').value),
-            tipo: document.getElementById('edit-conta-tipo').value
+            data: document.getElementById('data').value,
+            descricao: document.getElementById('descricao').value,
+            valor: valorInput,
+            moeda: document.getElementById('moeda').value,
+            categoria_id: selectCat.value
         };
 
         try {
-            const res = await fetch(`/api/contas/${id}`, {
+            const res = await fetch('/api/transacoes', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(dados)
+            });
+
+            if (res.ok) {
+                formTrans.reset(); // Limpa o formulário
+                // Reseta a data para hoje
+                document.getElementById('data').value = new Date().toISOString().split('T')[0];
+
+                // alert("Transação adicionada!");
+                await carregarTransacoes(); // Atualiza os cards de totais
+            } else {
+                const erro = await res.json();
+                alert("Erro: " + erro.erro);
+            }
+        } catch (err) {
+            console.error(err);
+            alert("Erro de conexão ao salvar transação.");
+        }
+    });
+}
+
+
+/* --- EXCLUIR TRANSAÇÃO (COM ATUALIZAÇÃO IMEDIATA) --- */
+async function excluirTransacao(id) {
+    if (!confirm("Tem certeza que deseja apagar este item?")) return;
+
+    try {
+        const res = await fetch(`/api/transacoes/${id}`, { method: 'DELETE' });
+
+        if (res.ok) {
+            // 1. Atualiza os totais e baixa os dados novos do banco
+            await carregarTransacoes();
+
+            // 2. Verifica qual modal está aberto olhando o título dele
+            const modal = document.getElementById('modal-transacoes-moeda');
+
+            // Só tentamos atualizar a lista se o modal estiver visível
+            if (modal.style.display === 'flex') {
+                const titulo = document.getElementById('titulo-modal-moeda').innerText;
+
+                if (titulo.includes("Extrato Completo")) {
+                    abrirExtratoCompleto(); // Recarrega a lista completa
+                } else if (titulo.includes("BRL")) {
+                    abrirModalTransacoesMoeda('BRL'); // Recarrega só BRL
+                } else if (titulo.includes("EUR")) {
+                    abrirModalTransacoesMoeda('EUR'); // Recarrega só EUR
+                }
+            } else {
+                // Se o modal estava fechado (ex: excluiu da lista principal antiga), apenas avisa
+                alert("Transação excluída!");
+            }
+
+        } else {
+            const erro = await res.json();
+            alert("Erro: " + erro.erro);
+        }
+    } catch (err) {
+        console.error(err);
+        alert("Erro de conexão ao excluir.");
+    }
+}
+
+/* --- GERENCIAMENTO DE CATEGORIAS --- */
+
+// 1. Abrir Modal de Lista e Carregar Tabela
+async function abrirModalListaCategorias() {
+    const modal = document.getElementById('modal-lista-categorias');
+    const tbody = document.getElementById('tabela-categorias-body');
+
+    if (!modal || !tbody) return;
+
+    tbody.innerHTML = '<tr><td colspan="3">Carregando...</td></tr>';
+    modal.style.display = 'flex';
+
+    try {
+        const res = await fetch('/api/categorias');
+        const categorias = await res.json();
+
+        tbody.innerHTML = '';
+
+        categorias.forEach(c => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid var(--border)';
+
+            const badgeClass = c.tipo === 'Receita' ? 'badge-receita' : 'badge-despesa';
+
+            tr.innerHTML = `
+                <td style="padding: 10px;">${c.nome_categoria}</td>
+                <td><span class="badge ${badgeClass}">${c.tipo}</span></td>
+                <td style="text-align: right;">
+                    <button class="btn-action edit" onclick="abrirModalEditarCategoria(${c.id}, '${c.nome_categoria}', '${c.tipo}')" title="Editar">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action delete" onclick="excluirCategoria(${c.id})" title="Excluir">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            tbody.appendChild(tr);
+        });
+
+    } catch (err) {
+        console.error("Erro ao carregar categorias:", err);
+        tbody.innerHTML = '<tr><td colspan="3">Erro ao carregar lista.</td></tr>';
+    }
+}
+// 2. Abrir Modal de Edição (Preenche os dados)
+function abrirModalEditarCategoria(id, nome, tipo) {
+    document.getElementById('edit-cat-id').value = id;
+    document.getElementById('edit-cat-nome').value = nome;
+    document.getElementById('edit-cat-tipo').value = tipo;
+
+    // Fecha a lista e abre a edição
+    document.getElementById('modal-lista-categorias').style.display = 'none';
+    document.getElementById('modal-editar-categoria').style.display = 'flex';
+}
+
+// 3. Salvar Edição (PUT)
+const formEditCat = document.getElementById('form-editar-categoria');
+if (formEditCat) {
+    formEditCat.addEventListener('submit', async (e) => {
+        e.preventDefault();
+
+        const id = document.getElementById('edit-cat-id').value;
+        const dados = {
+            nome: document.getElementById('edit-cat-nome').value,
+            tipo: document.getElementById('edit-cat-tipo').value
+        };
+
+        try {
+            const res = await fetch(`/api/categorias/${id}`, {
                 method: 'PUT',
                 headers: { 'Content-Type': 'application/json' },
                 body: JSON.stringify(dados)
             });
 
             if (res.ok) {
-                alert("✅ Conta atualizada com sucesso!");
-                fecharModalEditConta();
-                location.reload(); // Recarrega para atualizar saldos e nomes
+                // 1. FECHA OS MODAIS
+                document.getElementById('modal-editar-categoria').style.display = 'none';
+                document.getElementById('modal-lista-categorias').style.display = 'none';
+
+                // 2. ATUALIZA OS DADOS NA TELA
+                await carregarCategorias();
+                await carregarTransacoes();
+
             } else {
-                alert("❌ Erro ao atualizar conta.");
+                alert("Erro ao editar.");
             }
         } catch (err) {
-            console.error("Erro na requisição:", err);
+            console.error(err);
         }
     });
 }
-/* ---------- Funções de Exclusão com Atualização de Saldo ---------- */
-async function excluirConta(id) {
-    if (!confirm("Tem certeza que deseja excluir esta conta?")) return;
+
+// 4. Excluir Categoria (DELETE)
+async function excluirCategoria(id) {
+    if (!confirm("Tem certeza? Se houver transações nesta categoria, a exclusão será bloqueada.")) return;
 
     try {
-        const res = await fetch(`/api/contas/${id}`, { method: 'DELETE' });
-        const resultado = await res.json();
+        const res = await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
 
         if (res.ok) {
-            alert("✅ Conta excluída com sucesso!");
-            listarTodasContas();
+            // Remove a linha visualmente ou recarrega
+            abrirModalListaCategorias();
+            carregarCategorias(); // Atualiza o select da página principal
         } else {
-            // Aqui ele vai exibir a mensagem de "Bloqueado" que definimos no Python
-            alert("⚠️ " + resultado.erro);
+            const erro = await res.json();
+            alert("⚠️ " + (erro.erro || "Erro ao excluir"));
         }
     } catch (err) {
-        alert("Erro na conexão com o servidor.");
-    }
-}
-async function excluirCategoria(id) {
-    if (confirm("Excluir categoria?")) {
-        await fetch(`/api/categorias/${id}`, { method: 'DELETE' });
-        listarTodasCategorias(); // Atualiza a lista do modal
-        carregarMetadados();     // Atualiza o select do formulário
-        carregarTransacoes();   // ATUALIZA O SALDO NOS CARDS
+        alert("Erro de conexão.");
     }
 }
 
-// Funções para fechar esses modais específicos
-function fecharModalContas() {
-    document.getElementById('modal-contas').style.display = 'none';
+/* --- EDIÇÃO DE TRANSAÇÃO --- */
+
+// 1. Preenche o modal com os dados atuais
+async function prepararEdicaoTransacao(transacao) {
+    // Garantimos que o select de categorias do modal de edição esteja atualizado
+    const selectPrincipal = document.getElementById('categoria');
+    const selectEdit = document.getElementById('edit-trans-categoria');
+    selectEdit.innerHTML = selectPrincipal.innerHTML;
+
+    // Preenche os campos
+    document.getElementById('edit-trans-id').value = transacao.id;
+    document.getElementById('edit-trans-data').value = transacao.data;
+    document.getElementById('edit-trans-descricao').value = transacao.descricao;
+    document.getElementById('edit-trans-valor').value = Math.abs(transacao.valor);
+    document.getElementById('edit-trans-moeda').value = transacao.moeda;
+    document.getElementById('edit-trans-categoria').value = transacao.id_categoria;
+
+    document.getElementById('modal-editar-transacao').style.display = 'flex';
 }
 
-function fecharModalCategorias() {
-    document.getElementById('modal-categorias').style.display = 'none';
-}
-/* ---------- Interface ---------- */
+// 2. Envia a atualização para o servidor
+const formEditTrans = document.getElementById('form-editar-transacao');
+if (formEditTrans) {
+    formEditTrans.addEventListener('submit', async (e) => {
+        e.preventDefault();
 
-function renderizarTabela(transacoes) {
-    const tbody = document.querySelector("#transaction-table tbody");
-    if (!tbody) return;
-    tbody.innerHTML = "";
+        // --- VALIDAÇÃO DE DATA FUTURA NA EDIÇÃO ---
+        const inputData = document.getElementById('edit-trans-data').value;
+        const hoje = new Date().toISOString().split('T')[0];
 
-    if (transacoes.length === 0) {
-        document.getElementById("no-transactions-message").style.display = "block";
-        return;
-    }
-    document.getElementById("no-transactions-message").style.display = "none";
+        if (inputData > hoje) {
+            alert("⚠️ A data editada não pode ser futura!");
+            return;
+        }
+        const id = document.getElementById('edit-trans-id').value;
 
-    transacoes.forEach(t => {
-        const tr = document.createElement("tr");
-        const moedaTransacao = t.moeda || 'BRL';
+        const dados = {
+            data: document.getElementById('edit-trans-data').value,
+            descricao: document.getElementById('edit-trans-descricao').value,
+            valor: document.getElementById('edit-trans-valor').value,
+            moeda: document.getElementById('edit-trans-moeda').value,
+            categoria_id: document.getElementById('edit-trans-categoria').value
+        };
 
-        tr.innerHTML = `
-            <td>${t.id}</td>
-            <td>${t.data}</td>
-            <td>${t.descricao}</td>
-            <td class="${t.valor < 0 ? 'value-expense' : 'value-income'}">
-                ${t.valor.toLocaleString('pt-BR', { style: 'currency', currency: moedaTransacao })}
-            </td>
-            <td>${t.categoria}</td> 
-            <td>${t.conta}</td>
-            <td>
-                <button onclick="prepararEdicaoTransacao(${t.id}, '${t.data}', '${t.descricao}', ${t.valor}, ${t.id_conta}, ${t.id_categoria})" class="btn-action edit">
-                    <i class="fas fa-edit"></i>
-                </button>
-                <button class="btn-action delete" onclick="excluirTransacao(${t.id})">
-                    <i class="fas fa-trash"></i>
-                </button>
-            </td>
-        `;
-        tbody.appendChild(tr);
-    });
-}
-
-function atualizarResumo(dados) {
-    console.log("Dados recebidos para o resumo:", dados); // ADICIONE ISSO PARA TESTAR
-    const container = document.getElementById("resumo-container");
-    if (!container) return;
-    container.innerHTML = "";
-
-    const moedas = {};
-    dados.forEach(t => {
-        const m = t.moeda || 'BRL';
-        if (!moedas[m]) moedas[m] = { receitas: 0, despesas: 0 };
-        if (t.valor > 0) moedas[m].receitas += t.valor;
-        else moedas[m].despesas += Math.abs(t.valor);
-    });
-
-    Object.keys(moedas).forEach(m => {
-        const r = moedas[m];
-        const saldo = r.receitas - r.despesas;
-
-        const cardHtml = `
-            <div class="currency-card" onclick="abrirDetalhesMoeda('${m}')">
-                <div class="card-header">
-                    <span class="currency-badge">${m}</span>
-                    <h3>Extrato Resumido</h3>
-                </div>
-                
-                <div class="card-body">
-                    <div class="stat-row">
-                        <div class="stat-group-left">
-                            <div class="icon-circle income"><i class="fas fa-arrow-up"></i></div>
-                            <label>Receitas</label>
-                        </div>
-                        <span class="value-income">${r.receitas.toLocaleString('pt-BR', { style: 'currency', currency: m })}</span>
-                    </div>
-
-                    <div class="stat-row">
-                        <div class="stat-group-left">
-                            <div class="icon-circle expense"><i class="fas fa-arrow-down"></i></div>
-                            <label>Despesas</label>
-                        </div>
-                        <span class="value-expense">${r.despesas.toLocaleString('pt-BR', { style: 'currency', currency: m })}</span>
-                    </div>
-
-                    <div class="balance-footer">
-                        <label>SALDO ATUAL EM ${m}</label>
-                        <span class="${saldo >= 0 ? 'value-income' : 'value-expense'}">
-                            ${saldo.toLocaleString('pt-BR', { style: 'currency', currency: m })}
-                        </span>
-                    </div>
-                </div>
-            </div>
-        `;
-        container.innerHTML += cardHtml;
-    });
-}
-
-/* ---------- Detalhes e Modais ---------- */
-
-function abrirDetalhesMoeda(moeda) {
-    const modal = document.getElementById('modal-detalhes');
-    const titulo = document.getElementById('detalhe-titulo-moeda');
-    const tbody = document.getElementById('body-detalhes');
-
-    if (!modal) return;
-
-    titulo.innerText = `Extrato Detalhado - ${moeda}`;
-    tbody.innerHTML = "";
-
-    const filtradas = transacoesGlobais.filter(t => (t.moeda || 'BRL') === moeda);
-
-    filtradas.forEach(t => {
-        const tr = document.createElement("tr");
-        tr.innerHTML = `
-            <td>${t.data}</td>
-            <td>${t.descricao}</td>
-            <td class="${t.valor < 0 ? 'value-expense' : 'value-income'}">
-                ${t.valor.toLocaleString('pt-BR', { style: 'currency', currency: moeda })}
-            </td>
-            <td>${t.categoria}</td>
-        `;
-        tbody.appendChild(tr);
-    });
-
-    modal.style.display = 'flex';
-}
-
-function fecharModalDetalhes() {
-    document.getElementById('modal-detalhes').style.display = 'none';
-}
-
-/* ---------- Ações Form ---------- */
-
-transactionForm.addEventListener("submit", async (e) => {
-    e.preventDefault();
-
-    // Captura a data selecionada e a data de hoje (formato YYYY-MM-DD)
-    const dataInput = document.getElementById("data").value;
-    const hoje = new Date().toISOString().split("T")[0];
-
-    // BLOQUEIO: Se a data for maior que hoje, exibe alerta e para a execução
-    if (dataInput > hoje) {
-        alert("Atenção: Não é possível lançar transações em datas futuras!");
-        return;
-    }
-
-    const valorRaw = parseFloat(document.getElementById("valor").value);
-    const tipo = document.getElementById("tipo").value;
-
-    const dados = {
-        data: dataInput,
-        descricao: document.getElementById("descricao").value,
-        valor: tipo === "Despesa" ? -Math.abs(valorRaw) : Math.abs(valorRaw),
-        id_conta: parseInt(selectConta.value),
-        id_categoria: parseInt(selectCategoria.value)
-    };
-
-    try {
-        const res = await fetch('/api/transacoes', {
-            method: 'POST',
+        const res = await fetch(`/api/transacoes/${id}`, {
+            method: 'PUT',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(dados)
         });
 
         if (res.ok) {
-            transactionForm.reset();
-            // Garante que o limite de data continue ativo após resetar o form
-            document.getElementById("data").setAttribute("max", hoje);
-            await carregarTransacoes();
-            alert("Transação salva com sucesso!");
+            document.getElementById('modal-editar-transacao').style.display = 'none';
+            carregarTransacoes(); // Recarrega a lista e os saldos
         } else {
-            alert("Erro ao salvar transação no servidor.");
+            alert("Erro ao atualizar transação.");
         }
-    } catch (err) {
-        console.error("Erro na requisição:", err);
-        alert("Erro de conexão.");
-    }
-});
-
-
-async function excluirTransacao(id) {
-    if (confirm("Excluir?")) {
-        await fetch(`/api/transacoes/${id}`, { method: 'DELETE' });
-        carregarTransacoes();
-    }
+    });
 }
 
-/* ---------- Edição ---------- */
+/* --- EXTRATO COMPLETO (Resolve o problema das Receitas ocultas) --- */
+function abrirExtratoCompleto() {
+    const modal = document.getElementById('modal-transacoes-moeda');
+    const titulo = document.getElementById('titulo-modal-moeda');
+    const corpo = document.getElementById('corpo-tabela-moeda');
 
-async function prepararEdicaoTransacao(id, data, descricao, valor, id_conta, id_categoria) {
-    const modal = document.getElementById('modal-edit');
-    const container = document.getElementById('edit-fields');
-    document.getElementById('modal-title').innerText = "Editar Transação";
-    document.getElementById('edit-id').value = id;
+    titulo.innerHTML = '<i class="fas fa-history"></i> Extrato Completo';
+    corpo.innerHTML = '';
+
+    // Ordena por data (mais recente primeiro)
+    const todas = transacoesGlobais.sort((a, b) => new Date(b.data) - new Date(a.data));
+
+    if (todas.length === 0) {
+        corpo.innerHTML = '<tr><td colspan="5" style="text-align:center; padding:20px;">Nenhum registro encontrado.</td></tr>';
+    } else {
+        todas.forEach(t => {
+            const tr = document.createElement('tr');
+            tr.style.borderBottom = '1px solid #333';
+
+            const val = parseFloat(t.valor);
+            const ehDespesa = val < 0;
+
+            // Define cores e sinais visualmente
+            const corValor = ehDespesa ? '#FF6B6B' : '#2ECC71'; // Vermelho ou Verde
+            const badgeClass = ehDespesa ? 'badge-despesa' : 'badge-receita';
+
+            tr.innerHTML = `
+                <td style="padding: 10px;">${new Date(t.data).toLocaleDateString('pt-BR')}</td>
+                <td>${t.descricao}</td>
+                <td><span class="badge ${badgeClass}">${t.categoria}</span></td>
+                <td style="color: ${corValor}; font-weight: bold;">
+                    ${t.moeda === 'BRL' ? 'R$' : '€'} ${Math.abs(val).toFixed(2)}
+                </td>
+                <td style="text-align: right;">
+                    <button class="btn-action edit" onclick="fecharEEditar(${JSON.stringify(t).replace(/"/g, '&quot;')})">
+                        <i class="fas fa-edit"></i>
+                    </button>
+                    <button class="btn-action delete" onclick="excluirTransacao(${t.id})">
+                        <i class="fas fa-trash"></i>
+                    </button>
+                </td>
+            `;
+            corpo.appendChild(tr);
+        });
+    }
 
     modal.style.display = 'flex';
-    container.innerHTML = "Carregando...";
-
-    const [resContas, resCats] = await Promise.all([fetch('/api/contas'), fetch('/api/categorias')]);
-    const contas = await resContas.json();
-    const categorias = await resCats.json();
-
-    container.innerHTML = `
-        <input type="hidden" id="edit-target" value="transacao">
-        <div class="input-group"><label>Data</label><input type="date" id="edit-data" value="${data}"></div>
-        <div class="input-group"><label>Descrição</label><input type="text" id="edit-descricao" value="${descricao}"></div>
-        <div class="input-group"><label>Valor</label><input type="number" step="0.01" id="edit-valor" value="${Math.abs(valor)}"></div>
-        <div class="input-group">
-            <label>Tipo</label>
-            <select id="edit-tipo">
-                <option value="Receita" ${valor >= 0 ? 'selected' : ''}>Receita</option>
-                <option value="Despesa" ${valor < 0 ? 'selected' : ''}>Despesa</option>
-            </select>
-        </div>
-        <div class="input-group">
-            <label>Conta</label>
-            <select id="edit-id-conta">
-                ${contas.map(c => `<option value="${c.id}" ${String(c.id) == String(id_conta) ? 'selected' : ''}>${c.nome_instituicao}</option>`).join('')}
-            </select>
-        </div>
-        <div class="input-group">
-            <label>Categoria</label>
-            <select id="edit-id-categoria">
-                ${categorias.map(cat => `<option value="${cat.id}" ${String(cat.id) == String(id_categoria) ? 'selected' : ''}>${cat.nome_categoria}</option>`).join('')}
-            </select>
-        </div>
-    `;
 }
 
-document.getElementById('form-edit').addEventListener('submit', async (e) => {
-    e.preventDefault();
-
-    const id = document.getElementById('edit-id').value;
-    const target = document.getElementById('edit-target')?.value || "transacao";
-
-    if (target === "transacao") {
-        const dataEdit = document.getElementById('edit-data').value;
-        const hoje = new Date().toISOString().split("T")[0];
-
-        // BLOQUEIO na Edição
-        if (dataEdit > hoje) {
-            alert("Atenção: Não é permitido alterar a transação para uma data futura!");
-            return;
-        }
-
-        const valorRaw = parseFloat(document.getElementById('edit-valor').value);
-        const tipo = document.getElementById('edit-tipo').value;
-
-        const dados = {
-            data: dataEdit,
-            descricao: document.getElementById('edit-descricao').value,
-            valor: tipo === "Despesa" ? -Math.abs(valorRaw) : Math.abs(valorRaw),
-            id_conta: parseInt(document.getElementById('edit-id-conta').value),
-            id_categoria: parseInt(document.getElementById('edit-id-categoria').value)
-        };
-
-        try {
-            const res = await fetch(`/api/transacoes/${id}`, {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(dados)
-            });
-
-            if (res.ok) {
-                fecharModal();
-                await carregarTransacoes();
-                alert("Alteração salva com sucesso!");
-            } else {
-                alert("Erro ao atualizar transação.");
-            }
-        } catch (err) {
-            console.error("Erro de conexão:", err);
-            alert("Erro de conexão.");
-        }
+window.onclick = function (event) {
+    if (event.target.classList.contains('modal-overlay')) {
+        event.target.style.display = "none";
     }
-});
-
-function fecharModal() {
-    document.getElementById('modal-edit').style.display = 'none';
 }
-
-document.addEventListener('DOMContentLoaded', () => {
-    const hoje = new Date().toISOString().split("T")[0];
-
-    // Bloqueia o calendário do formulário principal
-    if (document.getElementById("data")) {
-        document.getElementById("data").setAttribute("max", hoje);
-    }
-
-    carregarMetadados();
-    carregarTransacoes();
-});

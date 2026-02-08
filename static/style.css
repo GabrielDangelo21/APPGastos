@@ -1,312 +1,577 @@
 :root {
-    --primary: #ffffff;
-    --accent: #3498db;
-    --accent2: #9b59b6;
-    --ok: #2ecc71;
-    --danger: #e74c3c;
-    --bg: #0f172a;
-    --card-bg: #1e293b;
-    --text: #f8fafc;
-    --muted: #94a3b8;
-    --muted2: #475569;
-    --input-bg: #0f172a;
-    --glass-bg: rgba(30, 41, 59, 0.7);
-}
-
-* {
-    box-sizing: border-box;
-    margin: 0;
-    padding: 0;
-    font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+    --bg: #1C344C;
+    /* Azul Marinho */
+    --accent: #DE7461;
+    /* Laranja */
+    --text: #F1E9DE;
+    /* Branco Creme */
+    --card-bg: rgba(255, 255, 255, 0.05);
+    /* Efeito de vidro */
+    --input-bg: #122334;
+    /* Navy mais escuro para inputs */
+    --border: rgba(241, 233, 222, 0.1);
 }
 
 body {
     background-color: var(--bg);
     color: var(--text);
+    font-family: 'Segoe UI', Roboto, sans-serif;
+    margin: 0;
     padding: 20px;
-    min-height: 100vh;
+}
+
+/* CARDS COM EFEITO DE VIDRO */
+.card {
+    background: var(--card-bg);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 25px;
+    backdrop-filter: blur(10px);
+    box-shadow: 0 8px 32px rgba(0, 0, 0, 0.3);
+}
+
+/* Espaçamento padrão para o título de qualquer card */
+.card h2 {
+    margin-bottom: 25px;
+    /* Cria o espaço entre o título e o formulário */
+    display: flex;
+    justify-content: space-between;
+    /* Alinha o título à esquerda e o botão à direita */
+    align-items: center;
+    font-size: 1.5rem;
 }
 
 .container {
-    max-width: 1000px;
+    max-width: 900px;
     margin: 0 auto;
 }
 
-h1 {
-    text-align: center;
-    margin-bottom: 30px;
-    color: var(--primary);
-    text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
-}
-
-/* ---------- GRID DE RESUMO ---------- */
-#resumo-container {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(350px, 1fr));
-    gap: 25px;
-    margin-bottom: 30px;
-}
-
-.currency-card {
-    background: var(--glass-bg);
-    backdrop-filter: blur(12px);
+/* Botão discreto para ver o extrato completo */
+.btn-ver-tudo {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+    /* Cor creme */
+    padding: 10px 20px;
     border-radius: 20px;
-    padding: 25px;
-    border: 1px solid rgba(255, 255, 255, 0.1);
-    box-shadow: 0 15px 35px rgba(0, 0, 0, 0.2);
+    /* Bem arredondado */
+    font-size: 0.85rem;
     cursor: pointer;
-    transition: all 0.3s ease;
-    display: flex;
-    flex-direction: column;
+    transition: all 0.3s;
+    opacity: 0.7;
+    /* Levemente transparente para não poluir */
 }
 
-.currency-card:hover {
-    transform: translateY(-8px);
+.btn-ver-tudo:hover {
+    opacity: 1;
     border-color: var(--accent);
-    background: rgba(30, 41, 59, 0.9);
+    /* Laranja no hover */
+    background: rgba(222, 116, 97, 0.1);
+    transform: translateY(-2px);
 }
 
-.card-header {
+/* Dashboard Cards */
+.dashboard-cards {
     display: flex;
-    justify-content: space-between;
-    align-items: center;
-    margin-bottom: 20px;
+    gap: 15px;
+    margin-bottom: 25px;
 }
 
-.card-header h3 {
-    font-size: 0.9rem;
-    color: var(--muted);
+.card-resumo {
+    flex: 1;
+    background: var(--card);
+    padding: 15px;
+    border-radius: 8px;
+    text-align: center;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    border: 1px solid #333;
+}
+
+.card-resumo h3 {
+    color: var(--accent);
     text-transform: uppercase;
+    font-size: 0.9rem;
     letter-spacing: 1px;
 }
 
-.currency-badge {
-    background: linear-gradient(135deg, var(--accent), var(--accent2));
-    color: white;
-    padding: 5px 12px;
-    border-radius: 8px;
-    font-size: 0.75rem;
+.card-resumo p {
+    font-size: 2rem;
     font-weight: bold;
+    margin: 10px 0;
 }
 
-/* ---------- ALINHAMENTO INTERNO (ESTE É O SEGREDO) ---------- */
-.stat-row {
-    display: flex !important;
-    justify-content: space-between !important;
-    /* SEPARA OS LADOS */
-    align-items: center !important;
-    background: rgba(255, 255, 255, 0.03);
-    padding: 12px 18px;
-    border-radius: 12px;
-    margin-bottom: 12px;
+.card-resumo.despesa-eur p {
+    color: #9b59b6;
+    /* Um roxo elegante para o Euro */
+}
+
+
+
+/* --- CORREÇÃO DE CONTRASTE NOS DROPDOWNS --- */
+
+/* Força o fundo escuro nas opções da lista */
+select option {
+    background-color: var(--input-bg);
+    /* Fundo Navy Escuro (#122334) */
+    color: var(--text);
+    /* Texto Creme (#F1E9DE) */
+    padding: 10px;
+}
+
+/* Ajuste específico para quando o mouse passa por cima (apenas alguns navegadores suportam) */
+select option:hover,
+select option:checked {
+    background-color: var(--accent);
+    /* Laranja no item selecionado */
+    color: var(--text);
+}
+
+/* --- ETIQUETAS (BADGES) DE CATEGORIA E TIPO --- */
+
+/* Estilo Base da Etiqueta */
+.badge {
+    padding: 5px 10px;
+    border-radius: 6px;
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    display: inline-block;
+}
+
+/* Estilo para DESPESA (Vermelho Coral Suave) */
+.badge-despesa {
+    background-color: rgba(229, 80, 57, 0.15);
+    /* Fundo vermelho transparente */
+    color: #FF6B6B;
+    /* Texto vermelho claro vibrante */
+    border: 1px solid rgba(229, 80, 57, 0.3);
+    /* Borda sutil */
+    box-shadow: 0 0 10px rgba(229, 80, 57, 0.1);
+    /* Brilho leve */
+}
+
+/* Estilo para RECEITA (Verde Esmeralda - Opcional, mas recomendado) */
+.badge-receita {
+    background-color: rgba(46, 204, 113, 0.15);
+    color: #2ECC71;
+    border: 1px solid rgba(46, 204, 113, 0.3);
+    box-shadow: 0 0 10px rgba(46, 204, 113, 0.1);
+}
+
+/* Garante que os dois cards ocupem o espaço de forma equilibrada */
+.dashboard-cards {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 25px;
+}
+
+.card-resumo.despesa p {
+    color: var(--red);
+}
+
+/* LAYOUT DE COLUNAS (NOVO)
+.row-container {
+    display: flex;
+    gap: 20px;
+    margin-bottom: 20px;
+} */
+
+/* CARDS GERAIS */
+.card {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 10px;
+    border: 1px solid #333;
+}
+
+/* --- LAYOUT DOS CARDS --- */
+/* 1. Container Principal: Garante que as colunas estiquem */
+.row-container {
+    display: flex;
+    gap: 20px;
+    align-items: stretch;
+    /* O SEGREDO: Força os dois cards a terem a mesma altura final */
+}
+
+/* 2. O Card em si: Organiza o conteúdo verticalmente */
+.half-card {
+    flex: 1;
+    display: flex;
+    /* Transforma o card em flexbox */
+    flex-direction: column;
+    /* Coloca itens um embaixo do outro */
+    height: auto;
+    /* Garante que ele respeite o stretch do pai */
+}
+
+/* 3. O Formulário dentro do card: Ocupa o espaço vazio */
+.half-card form {
+    display: flex;
+    flex-direction: column;
+    flex: 1;
+    /* IMPORTANTE: Faz o formulário crescer para preencher o card */
+}
+
+h1,
+h2 {
+    color: var(--text);
+    font-weight: 300;
+}
+
+/* --- FORMULÁRIOS --- */
+.form-row {
+    display: flex;
+    gap: 15px;
+    /* Espaço entre os campos */
+    margin-bottom: 15px;
     width: 100%;
 }
 
-.stat-group-left {
-    display: flex;
-    align-items: center;
-    gap: 15px;
-}
-
-.stat-group-left label {
-    font-size: 1rem;
-    color: var(--text);
-    margin: 0;
-}
-
-.stat-row>span {
-    font-size: 1.1rem;
-    font-weight: 700;
-}
-
-.icon-circle {
-    width: 38px;
-    height: 38px;
-    border-radius: 50%;
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    flex-shrink: 0;
-}
-
-.icon-circle.income {
-    background: rgba(46, 204, 113, 0.15);
-    color: var(--ok);
-}
-
-.icon-circle.expense {
-    background: rgba(231, 76, 60, 0.15);
-    color: var(--danger);
-}
-
-/* ---------- FOOTER DO CARD ---------- */
-.balance-footer {
-    margin-top: 10px;
-    padding: 20px;
-    background: rgba(52, 152, 219, 0.1);
-    border-radius: 14px;
-    text-align: center;
-    display: flex;
-    flex-direction: column;
-    gap: 5px;
-}
-
-.balance-footer label {
-    font-size: 0.7rem;
-    text-transform: uppercase;
-    color: var(--muted);
-    letter-spacing: 2px;
-}
-
-.balance-footer span {
-    font-size: 1.8rem;
-    font-weight: 800;
-}
-
-/* ---------- FORMULÁRIOS E TABELAS ---------- */
-.card {
-    background: var(--card-bg);
-    padding: 25px;
-    border-radius: 12px;
-    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3);
-    margin-bottom: 20px;
-    border: 1px solid rgba(255, 255, 255, 0.05);
-}
-
-h2 {
-    font-size: 1.2rem;
-    margin-bottom: 20px;
-    color: var(--primary);
-    border-bottom: 2px solid var(--bg);
-    padding-bottom: 10px;
-}
-
+/* Garante que cada par de (Label + Input) ocupe metade da linha */
 .input-group {
-    margin-bottom: 15px;
+    flex: 1;
     display: flex;
     flex-direction: column;
 }
 
-.input-group label {
-    font-weight: 600;
+/* Garante que o grupo de input de categoria não fique colado no topo caso não haja H2 */
+.input-group:first-of-type {
+    margin-top: 5px;
+}
+
+label {
+    color: var(--accent);
+    font-size: 0.75rem;
+    font-weight: bold;
+    text-transform: uppercase;
     margin-bottom: 5px;
-    font-size: 0.9rem;
-    color: var(--muted);
+    letter-spacing: 0.5px;
 }
 
 input,
 select {
+    background: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
     padding: 10px;
-    border: 1px solid #334155;
     border-radius: 6px;
-    font-size: 1rem;
-    background-color: var(--input-bg);
-    color: white;
+    width: 100%;
+    /* Ocupa todo o espaço do input-group */
+    box-sizing: border-box;
+    /* Evita que o padding "estoure" a largura */
+    font-size: 0.9rem;
 }
 
-.btn-submit {
-    background: var(--accent);
-    color: white;
-    border: none;
+select {
+    /* 1. Remove a seta padrão "feia" do sistema */
+    -webkit-appearance: none;
+    -moz-appearance: none;
+    appearance: none;
+
+    /* 2. Adiciona nossa própria seta (SVG na cor Laranja #DE7461) */
+    background-image: url("data:image/svg+xml;charset=UTF-8,%3csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='%23DE7461'%3e%3cpath d='M7 10l5 5 5-5z'/%3e%3c/svg%3e");
+
+    /* 3. Posiciona a seta exatamente onde queremos */
+    background-repeat: no-repeat;
+    background-position: right 15px center;
+    /* 15px de distância da borda direita! */
+    background-size: 20px;
+    /* Tamanho da seta */
+
+    /* 4. Garante espaço interno para o texto não ficar em cima da seta */
+    padding-right: 45px;
+
+    /* Mantém as outras configurações de cor */
+    background-color: var(--input-bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding-left: 12px;
+    padding-top: 10px;
+    padding-bottom: 10px;
+    border-radius: 8px;
+    cursor: pointer;
+}
+
+input:focus,
+select:focus {
+    border-color: var(--accent);
+    outline: none;
+    background: rgba(222, 116, 97, 0.05);
+}
+
+select:focus {
+    outline: 1px solid var(--blue);
+    border-color: var(--blue);
+}
+
+/* Botões */
+button {
     padding: 12px;
-    border-radius: 6px;
+    border: none;
+    border-radius: 5px;
     cursor: pointer;
     font-weight: bold;
+    transition: 0.2s;
 }
 
-#transaction-table {
+
+
+.btn-submit:hover {
+    background-color: #2980b9;
+}
+
+/* BOTÃO DE AÇÃO (LARANJA) */
+.btn-submit,
+.btn-action.ok {
+    background-color: var(--accent);
+    color: var(--text);
+    border: none;
+    padding: 14px;
+    border-radius: 8px;
+    font-weight: bold;
+    cursor: pointer;
+    text-transform: uppercase;
+    width: 100%;
+    margin-top: auto;
+    /* Empurra o botão para o fim do card se um for maior que o outro */
+    transition: transform 0.1s, filter 0.2s;
+}
+
+.btn-submit:hover {
+    filter: brightness(1.1);
+}
+
+.btn-submit:active {
+    transform: scale(0.98);
+}
+
+/* FECHAR MODAL */
+.btn-close {
+    background: transparent;
+    border: none;
+    color: var(--text);
+    /* "X" em Creme */
+    font-size: 2rem;
+    cursor: pointer;
+    line-height: 1;
+    transition: color 0.2s;
+}
+
+.btn-close:hover {
+    color: var(--accent);
+}
+
+.dica-box {
+    margin-top: 15px;
+    color: #888;
+    background: #252525;
+    padding: 10px;
+    border-radius: 5px;
+}
+
+/* --- TABELAS DENTRO DOS MODAIS --- */
+table {
     width: 100%;
     border-collapse: collapse;
 }
 
-#transaction-table th,
-#transaction-table td {
-    padding: 12px;
+th {
     text-align: left;
-    border-bottom: 1px solid #334155;
+    color: var(--accent);
+    text-transform: uppercase;
+    font-size: 0.8rem;
+    padding: 12px 10px;
+    border-bottom: 2px solid var(--accent);
 }
 
-/* ---------- MODAL ---------- */
+td {
+    padding: 12px 10px;
+    border-bottom: 1px solid var(--border);
+    color: var(--text);
+}
+
+/* Lista Histórico */
+ul {
+    list-style: none;
+    padding: 0;
+}
+
+li {
+    background: #252525;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px;
+    margin-bottom: 8px;
+    border-radius: 5px;
+    border-left: 4px solid #ccc;
+}
+
+li.plus {
+    border-left-color: var(--green);
+}
+
+li.minus {
+    border-left-color: var(--red);
+}
+
+.info strong {
+    display: block;
+    font-size: 1rem;
+}
+
+.info span {
+    font-size: 0.8rem;
+    color: #aaa;
+}
+
+.valor {
+    font-weight: bold;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+}
+
+.delete-btn {
+    background: transparent;
+    color: #666;
+    font-size: 1.2rem;
+    padding: 0 5px;
+}
+
+.delete-btn:hover {
+    color: var(--red);
+}
+
+/* Responsivo para Celular */
+@media (max-width: 768px) {
+    .row-container {
+        flex-direction: column;
+    }
+}
+
+/* --- ESTILO DOS MODAIS --- */
 .modal-overlay {
+    background-color: rgba(18, 35, 52, 0.85);
+    /* Fundo Navy escuro com transparência */
+    backdrop-filter: blur(5px);
+    display: flex;
+    justify-content: center;
+    align-items: center;
     position: fixed;
     top: 0;
     left: 0;
     width: 100%;
     height: 100%;
-    background: rgba(0, 0, 0, 0.85);
-    display: flex;
-    justify-content: center;
-    align-items: center;
     z-index: 1000;
-    backdrop-filter: blur(6px);
 }
 
-.list-modal {
-    width: 95%;
-    max-width: 900px;
-    max-height: 85vh;
-    overflow-y: auto;
-    padding: 30px;
-}
-
-/* Ajuste para as tabelas dentro dos modais */
-.list-modal table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 20px;
+/* Garante que o card dentro do modal siga o tema */
+.modal-overlay .card {
+    background: #1C344C;
+    /* Navy sólido para garantir leitura */
+    border: 1px solid var(--accent);
     color: var(--text);
+    max-height: 90vh;
+    overflow-y: auto;
 }
 
-.list-modal th {
-    text-align: left;
-    padding: 12px;
-    border-bottom: 2px solid var(--accent);
-    color: var(--accent);
-    text-transform: uppercase;
-    font-size: 0.85rem;
-}
-
-.list-modal td {
-    padding: 12px;
-    border-bottom: 1px solid #334155;
-    font-size: 0.95rem;
+/* --- HEADER DO MODAL E BOTÃO FECHAR --- */
+.modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    padding-bottom: 10px;
 }
 
 .modal-header h2 {
-    border: none;
-    /* Remove a linha de baixo do h2 no modal */
     margin: 0;
-}
-
-.btn-close {
-    background: none;
-    border: none;
-    color: var(--muted);
-    font-size: 2.5rem;
-    cursor: pointer;
-}
-
-.value-income {
-    color: var(--ok);
-    font-weight: bold;
-}
-
-.value-expense {
-    color: var(--danger);
-    font-weight: bold;
-}
-
-.btn-action {
-    border: none;
-    background: none;
-    cursor: pointer;
-    font-size: 1.1rem;
-}
-
-.btn-action.edit {
     color: var(--accent);
+    /* Títulos do modal em Laranja */
+}
+
+/* Estilo para o conteúdo dentro do modal */
+.list-modal,
+.card-modal {
+    background: var(--card);
+    padding: 25px;
+    border-radius: 12px;
+    border: 1px solid #444;
+    box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5);
+    max-height: 90vh;
+    /* Não deixa o modal ser maior que a tela */
+    overflow-y: auto;
+    /* Adiciona scroll se a lista for muito longa */
+}
+
+/* BOTÕES DE RESUMO (BRL / EUR) */
+.card-resumo.clickable {
+    cursor: pointer;
+    /* Transforma a seta na mãozinha */
+    transition: transform 0.3s ease, border-color 0.3s ease, background-color 0.3s ease;
+    position: relative;
+    overflow: hidden;
+    border: 2px solid transparent;
+    /* Reserva o espaço para a borda laranja no hover */
+}
+
+.card-resumo.clickable:hover {
+    transform: translateY(-5px);
+    /* Sobe um pouco o card */
+    border-color: var(--accent);
+    /* Cor Laranja #DE7461 */
+    background-color: rgba(222, 116, 97, 0.05);
+    /* Um brilho laranja bem sutil no fundo */
+}
+
+.card-resumo.clickable:active {
+    transform: translateY(0);
+    /* O card volta para a posição original ao clicar */
+    filter: brightness(0.9);
+    /* Dá uma leve escurecida no momento do clique */
+}
+
+.card-resumo small {
+    display: block;
+    margin-top: 10px;
+    color: var(--muted);
+    font-size: 0.75rem;
+    font-style: italic;
+}
+
+/* Ajuste para ícones dentro da tabela do modal */
+.btn-action.edit {
+    color: var(--text);
 }
 
 .btn-action.delete {
-    color: var(--danger);
+    color: var(--accent);
+}
+
+/* --- BOTÕES DE AÇÃO (ÍCONES) --- */
+.btn-action {
+    background: rgba(255, 255, 255, 0.05);
+    border: 1px solid var(--border);
+    color: var(--text);
+    padding: 8px;
+    border-radius: 6px;
+    cursor: pointer;
+    transition: all 0.2s;
+    margin-left: 5px;
+}
+
+.btn-action:hover {
+    background: var(--accent);
+    color: var(--bg);
+    /* Inverte a cor no hover */
+    border-color: var(--accent);
+}
+
+/* Destaque para o ícone de lixeira no hover */
+.btn-action.delete:hover {
+    background-color: #ff4d4d;
+    border-color: #ff4d4d;
 }

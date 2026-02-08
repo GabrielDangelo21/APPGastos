@@ -8,14 +8,14 @@ from mostradores import (
 )
 from servicos import (
     menu_cadastrar_categoria,
-    menu_cadastrar_conta,
+    # menu_cadastrar_conta,
     menu_cadastrar_transacao,
     menu_editar_categoria,
-    menu_editar_conta,
+    # menu_editar_conta,
     menu_editar_transacao,
     menu_excluir_transacao,
     menu_exibir_categorias,
-    menu_exibir_contas,
+    # menu_exibir_contas,
     menu_exibir_transacoes,
     menu_total_gasto_por_categoria,
 )
@@ -38,20 +38,6 @@ def menu():
 
         if opcao == "1":
             while True:
-                mostrar_menu_contas()
-                opcao_contas = ler_str("Escolha uma opção: ")
-                if opcao_contas == "1":
-                    menu_cadastrar_conta()
-                elif opcao_contas == "2":
-                    menu_exibir_contas()
-                elif opcao_contas == "3":
-                    menu_editar_conta()
-                elif opcao_contas == "0":
-                    print("Voltando ao menu principal...")
-                    break
-
-        elif opcao == "2":
-            while True:
                 mostrar_menu_categorias()
                 opcao_categorias = ler_str("Escolha uma opção: ")
                 if opcao_categorias == "1":
@@ -66,7 +52,7 @@ def menu():
                     print("Voltando ao menu principal...")
                     break
 
-        elif opcao == "3":
+        elif opcao == "2":
             while True:
                 mostrar_menu_transacoes()
                 opcao_transacoes = ler_str("Escolha uma opção: ")

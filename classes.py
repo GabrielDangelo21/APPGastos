@@ -2,15 +2,15 @@ import locale
 import sqlite3
 
 
-class Conta:
-    def __init__(
-        self, nome_instituicao, moeda, saldo_inicial, tipo_conta, id_conta=None
-    ):
-        self.id_conta = id_conta
-        self.nome_instituicao = nome_instituicao
-        self.moeda = moeda
-        self.saldo_inicial = saldo_inicial
-        self.tipo_conta = tipo_conta
+# class Conta:
+#     def __init__(
+#         self, nome_instituicao, moeda, saldo_inicial, tipo_conta, id_conta=None
+#     ):
+#         self.id_conta = id_conta
+#         self.nome_instituicao = nome_instituicao
+#         self.moeda = moeda
+#         self.saldo_inicial = saldo_inicial
+#         self.tipo_conta = tipo_conta
 
 
 class Categoria:
@@ -21,14 +21,13 @@ class Categoria:
 
 
 class Transacao:
-    def __init__(
-        self, data, descricao, valor, id_conta, id_categoria, id_transacao=None
-    ):
+    def __init__(self, data, descricao, valor, moeda, id_categoria, id_transacao=None):
         self.id_transacao = id_transacao
         self.data = data
         self.descricao = descricao
         self.valor = valor
-        self.id_conta = id_conta  # Antes era conta_recebida
+        self.moeda = moeda
+        # self.id_conta = id_conta  # Antes era conta_recebida
         self.id_categoria = id_categoria  # Antes era categoria_recebida
 
 
@@ -55,19 +54,6 @@ class GerenciadorFinancas:
 
         cursor = self.conn.cursor()
 
-        # 3. Criar tabelas
-        cursor.execute(
-            """
-            CREATE TABLE IF NOT EXISTS conta (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                nome_instituicao TEXT NOT NULL,
-                moeda TEXT NOT NULL,
-                saldo_inicial REAL,
-                tipo_conta TEXT NOT NULL  
-            )
-        """
-        )
-
         cursor.execute(
             """
             CREATE TABLE IF NOT EXISTS categoria (
@@ -85,88 +71,14 @@ class GerenciadorFinancas:
                 data DATE,
                 descricao TEXT NOT NULL,
                 valor REAL,
-                id_conta INTEGER,
+                moeda TEXT,
                 id_categoria INTEGER,
-                FOREIGN KEY (id_conta) REFERENCES conta(id),
                 FOREIGN KEY (id_categoria) REFERENCES categoria(id)
             )
         """
         )
 
         self.conn.commit()
-
-    def adicionar_conta(self, conta_obj):
-        cursor = self.conn.cursor()
-
-        # 1. Verificar se a conta já existe (pelo nome)
-        cursor.execute(
-            "SELECT id FROM conta WHERE nome_instituicao = ?",
-            (conta_obj.nome_instituicao,),
-        )
-        if cursor.fetchone():
-            print(f"A conta '{conta_obj.nome_instituicao}' já existe no banco.")
-        else:
-            # 2. Inserir usando os dados do objeto
-            cursor.execute(
-                """
-                INSERT INTO conta (nome_instituicao, moeda, saldo_inicial, tipo_conta) 
-                VALUES (?, ?, ?, ?)
-            """,
-                (
-                    conta_obj.nome_instituicao,
-                    conta_obj.moeda,
-                    conta_obj.saldo_inicial,
-                    conta_obj.tipo_conta,
-                ),
-            )
-
-            self.conn.commit()
-            print(f"Conta '{conta_obj.nome_instituicao}' cadastrada com sucesso!")
-
-    def exibir_contas(self):
-        cursor = self.conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT nome_instituicao, moeda, saldo_inicial, tipo_conta FROM conta
-        """
-        )
-
-        resultado = cursor.fetchall()
-        for nome_instituicao, moeda, saldo_inicial, tipo_conta in resultado:
-            valor_formatado = self.formatar_moeda(saldo_inicial, moeda)
-            print(
-                f"Banco: {nome_instituicao} | Moeda: {moeda} | Saldo: {valor_formatado} | Tipo: {tipo_conta}"
-            )
-
-    def exibir_contas_com_id(self):
-        cursor = self.conn.cursor()
-
-        cursor.execute(
-            """
-            SELECT id, nome_instituicao, moeda, saldo_inicial, tipo_conta FROM conta
-        """
-        )
-
-        resultado = cursor.fetchall()
-        for id, nome_instituicao, moeda, saldo_inicial, tipo_conta in resultado:
-            valor_formatado = self.formatar_moeda(saldo_inicial, moeda)
-            print(
-                f"ID: {id} | Banco: {nome_instituicao} | Moeda: {moeda} | Saldo: {valor_formatado} | Tipo: {tipo_conta}"
-            )
-
-    def editar_conta(self, id_conta, nome, moeda, saldo, tipo):
-        cursor = self.conn.cursor()
-        cursor.execute(
-            """
-                UPDATE conta 
-                SET nome_instituicao = ?, moeda = ?, saldo_inicial = ?, tipo_conta = ?
-                WHERE id = ?
-            """,
-            (nome, moeda, saldo, tipo, id_conta),
-        )
-        self.conn.commit()
-        print(f"\n✅ Conta ID {id_conta} atualizada com sucesso!")
 
     def adicionar_categoria(self, categoria_obj):
         cursor = self.conn.cursor()
@@ -200,8 +112,12 @@ class GerenciadorFinancas:
         )
 
         resultado = cursor.fetchall()
+
+        print(f"\n{'CATEGORIA':<25} | {'TIPO':<20}")
+        print("-" * 45)
+
         for nome_categoria, tipo_categoria in resultado:
-            print(f"Categoria: {nome_categoria} | Tipo: {tipo_categoria}")
+            print(f"{nome_categoria[:20].ljust(25)} | {tipo_categoria[:15].ljust(15)}")
 
     def exibir_categorias_com_id(self):
         cursor = self.conn.cursor()
@@ -249,24 +165,6 @@ class GerenciadorFinancas:
         resultado = cursor.fetchone()
         return resultado[0] if resultado else "Desconhecida"
 
-    def buscar_id_conta(self, nome_procurado):
-        cursor = self.conn.cursor()
-
-        # 1. Executa a busca
-        cursor.execute(
-            "SELECT id FROM conta WHERE nome_instituicao = ?", (nome_procurado,)
-        )
-
-        # 2. Pega a primeira linha encontrada
-        resultado = cursor.fetchone()
-
-        if resultado:
-            # Se encontrou, resultado será algo como (1,)
-            return resultado[0]  # Retorna apenas o número 1
-        else:
-            print(f"Nenhuma conta com o nome '{nome_procurado}' encontrada.")
-            return None
-
     def buscar_id_categoria(self, nome_procurado):
         cursor = self.conn.cursor()
 
@@ -289,12 +187,12 @@ class GerenciadorFinancas:
         cursor = self.conn.cursor()
         # Agora inserimos diretamente os IDs que vieram do objeto transacao
         cursor.execute(
-            "INSERT INTO transacao (data, descricao, valor, id_conta, id_categoria) VALUES (?, ?, ?, ?, ?)",
+            "INSERT INTO transacao (data, descricao, valor, moeda, id_categoria) VALUES (?, ?, ?, ?, ?)",
             (
                 transacao.data,
                 transacao.descricao,
                 transacao.valor,
-                transacao.id_conta,  # Aqui agora já é o ID
+                transacao.moeda,
                 transacao.id_categoria,  # Aqui agora já é o ID
             ),
         )
@@ -340,9 +238,8 @@ class GerenciadorFinancas:
 
         cursor.execute(
             """
-                SELECT t.data, t.descricao, t.valor, c.nome_instituicao, cat.nome_categoria, c.moeda
+                SELECT t.data, t.descricao, t.valor, t.moeda, cat.nome_categoria
                 FROM transacao t
-                JOIN conta c ON t.id_conta = c.id
                 JOIN categoria cat ON t.id_categoria = cat.id
                 ORDER BY t.data DESC
             """
@@ -351,23 +248,20 @@ class GerenciadorFinancas:
         resultado = cursor.fetchall()
 
         # Cabeçalho para alinhar (lembra da dica do alinhamento?)
-        print(
-            f"\n{'DATA':<12} | {'DESCRIÇÃO':<20} | {'VALOR':>15} | {'BANCO':<15} | {'CATEGORIA':<15}"
-        )
+        print(f"\n{'DATA':<12} | {'DESCRIÇÃO':<20} | {'VALOR':<15} | {'CATEGORIA':<15}")
         print("-" * 90)
 
         for (
             data,
             descricao,
             valor,
-            nome_instituicao,
-            nome_categoria,
             moeda,
+            nome_categoria,
         ) in resultado:
             valor_formatado = self.formatar_moeda(valor, moeda)
             # Usando f-string com alinhamento para ficar bonito
             print(
-                f"{str(data):<12} | {descricao[:20].ljust(20)} | {valor_formatado.rjust(15)} | {nome_instituicao[:15].ljust(15)} | {nome_categoria[:15].ljust(15)}"
+                f"{str(data):<12} | {descricao[:20].ljust(20)} | {valor_formatado.ljust(15)} | {nome_categoria[:15].ljust(15)}"
             )
 
     def exibir_transacao_com_id(self):
@@ -375,9 +269,8 @@ class GerenciadorFinancas:
 
         cursor.execute(
             """
-                SELECT t.id, t.data, t.descricao, t.valor, c.nome_instituicao, cat.nome_categoria, c.moeda
+                SELECT t.id, t.data, t.descricao, t.valor, t.moeda, cat.nome_categoria
                 FROM transacao t
-                JOIN conta c ON t.id_conta = c.id
                 JOIN categoria cat ON t.id_categoria = cat.id
                 ORDER BY t.data DESC
             """
@@ -387,7 +280,7 @@ class GerenciadorFinancas:
 
         # Cabeçalho para alinhar (lembra da dica do alinhamento?)
         print(
-            f"\n{'ID':<5} | {'DATA':<12} | {'DESCRIÇÃO':<20} | {'VALOR':>15} | {'BANCO':<15} | {'CATEGORIA':<15}"
+            f"\n{'ID':<5} | {'DATA':<12} | {'DESCRIÇÃO':<20} | {'VALOR':>15} | {'CATEGORIA':<15}"
         )
         print("-" * 90)
 
@@ -396,27 +289,26 @@ class GerenciadorFinancas:
             data,
             descricao,
             valor,
-            nome_instituicao,
-            nome_categoria,
             moeda,
+            nome_categoria,
         ) in resultado:
             valor_formatado = self.formatar_moeda(valor, moeda)
             # Usando f-string com alinhamento para ficar bonito
             print(
-                f"{str(id):<5} | {str(data):<12} | {descricao[:20].ljust(20)} | {valor_formatado.rjust(15)} | {nome_instituicao[:15].ljust(15)} | {nome_categoria[:15].ljust(15)}"
+                f"{str(id):<5} | {str(data):<12} | {descricao[:20].ljust(20)} | {valor_formatado.rjust(15)} | {nome_categoria[:15].ljust(15)}"
             )
 
     def editar_transacao(
-        self, id_transacao, data, descricao, valor, id_conta, id_categoria
+        self, id_transacao, data, descricao, valor, moeda, id_categoria
     ):
         cursor = self.conn.cursor()
         cursor.execute(
             """
             UPDATE transacao
-            SET data = ?, descricao = ?, valor = ?, id_conta = ?, id_categoria = ?
+            SET data = ?, descricao = ?, valor = ?, moeda = ?, id_categoria = ?
             WHERE id = ?
         """,
-            (data, descricao, valor, id_conta, id_categoria, id_transacao),
+            (data, descricao, valor, moeda, id_categoria, id_transacao),
         )
         self.conn.commit()
         print(f"\n✅ Transação ID {id_transacao} atualizada com sucesso!")

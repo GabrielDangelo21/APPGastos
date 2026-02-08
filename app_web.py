@@ -1,11 +1,8 @@
 from flask import Flask, render_template, jsonify, request
-from classes import GerenciadorFinancas, Transacao, Conta, Categoria
-
-# REMOVEMOS O IMPORT DO 'db' AQUI POIS ELE NÃO EXISTE NO SEU CLASSES.PY
+from classes import GerenciadorFinancas, Transacao, Categoria
 
 app = Flask(__name__)
-
-# Instancia o gerenciador que usa o SQLite puro (definido em classes.py)
+# Instancia o banco
 banco = GerenciadorFinancas("receitas_despesas.db")
 
 
@@ -14,115 +11,18 @@ def index():
     return render_template("index.html")
 
 
-# --- ROTAS GET ---
-
-
-@app.route("/api/transacoes", methods=["GET"])
-def listar_transacoes():
-    try:
-        cursor = banco.conn.cursor()
-        cursor.execute(
-            """
-            SELECT 
-                t.id, t.data, t.descricao, t.valor, 
-                c.nome_categoria as categoria, 
-                cta.nome_instituicao as conta,
-                t.id_conta, t.id_categoria, cta.moeda
-            FROM transacao t
-            LEFT JOIN categoria c ON t.id_categoria = c.id
-            LEFT JOIN conta cta ON t.id_conta = cta.id
-            ORDER BY t.data DESC
-        """
-        )
-
-        colunas = [col[0] for col in cursor.description]
-        transacoes = [dict(zip(colunas, row)) for row in cursor.fetchall()]
-        return jsonify(transacoes)
-    except Exception as e:
-        print(f"Erro Transações: {e}")
-        return jsonify([]), 500
-
-
-@app.route("/api/contas", methods=["GET"])
-def listar_contas():
-    try:
-        cursor = banco.conn.cursor()
-        # Buscamos os dados brutos do SQLite
-        cursor.execute(
-            "SELECT id, nome_instituicao, moeda, saldo_inicial, tipo_conta FROM conta"
-        )
-        dados = cursor.fetchall()
-
-        # Montamos a lista garantindo os nomes que o JS espera
-        contas_formatadas = []
-        for linha in dados:
-            contas_formatadas.append(
-                {
-                    "id": linha[0],
-                    "nome_instituicao": linha[1],
-                    "moeda": linha[2],
-                    "saldo_inicial": float(linha[3] or 0),
-                    "tipo_conta": linha[4],
-                }
-            )
-        return jsonify(contas_formatadas)
-    except Exception as e:
-        print(f"Erro ao listar contas: {e}")
-        return jsonify([]), 500
-
-
+# --- ROTA DE CATEGORIAS (Simples e Direta) ---
 @app.route("/api/categorias", methods=["GET"])
 def listar_categorias():
     try:
         cursor = banco.conn.cursor()
         cursor.execute("SELECT id, nome_categoria, tipo_categoria FROM categoria")
         categorias = [
-            {"id": row[0], "nome_categoria": row[1], "tipo": row[2]}
-            for row in cursor.fetchall()
+            {"id": r[0], "nome_categoria": r[1], "tipo": r[2]}
+            for r in cursor.fetchall()
         ]
         return jsonify(categorias)
     except Exception as e:
-        return jsonify({"erro": str(e)}), 500
-
-
-# --- ROTAS POST (SALVAR) ---
-
-
-@app.route("/api/transacoes", methods=["POST"])
-def salvar_transacao():
-    dados = request.json
-    try:
-        # Cria o objeto Transacao usando sua classe
-        nova = Transacao(
-            data=dados["data"],
-            descricao=dados["descricao"],
-            valor=dados["valor"],
-            id_conta=dados["id_conta"],
-            id_categoria=dados["id_categoria"],
-        )
-        banco.adicionar_transacao(nova)
-        return jsonify({"status": "sucesso"}), 201
-    except Exception as e:
-        print(f"Erro ao salvar: {e}")
-        return jsonify({"erro": str(e)}), 500
-
-
-@app.route("/api/contas", methods=["POST"])
-def salvar_conta():
-    dados = request.json
-    print(f"Recebido para salvar: {dados}")  # Veja isso no terminal!
-    try:
-        # Criamos o objeto usando os nomes que vêm do JS
-        nova_conta = Conta(
-            nome_instituicao=dados.get("nome"),
-            moeda=dados.get("moeda"),
-            saldo_inicial=float(dados.get("saldo", 0)),
-            tipo_conta=dados.get("tipo"),
-        )
-        banco.adicionar_conta(nova_conta)
-        return jsonify({"status": "sucesso"}), 201
-    except Exception as e:
-        print(f"ERRO AO SALVAR NO PYTHON: {e}")
         return jsonify({"erro": str(e)}), 500
 
 
@@ -130,57 +30,71 @@ def salvar_conta():
 def salvar_categoria():
     dados = request.json
     try:
-        nova = Categoria(dados["nome"], dados["tipo"])
-        banco.adicionar_categoria(nova)
+        nova_cat = Categoria(dados["nome"], dados["tipo"])
+        banco.adicionar_categoria(nova_cat)
         return jsonify({"status": "sucesso"}), 201
     except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
 
-# --- ROTAS DELETE ---
-
-
-@app.route("/api/contas/<int:id>", methods=["DELETE"])
-def excluir_conta(id):
+# --- ROTAS DE TRANSAÇÕES (Sem vínculos com Contas) ---
+@app.route("/api/transacoes", methods=["GET"])
+def listar_transacoes():
     try:
         cursor = banco.conn.cursor()
+        # Query simplificada: Sem JOIN com conta, pegando a moeda direto da transação (se existir)
+        # Assumindo que você manteve 'moeda' na transação ou vai usar padrão BRL
+        cursor.execute(
+            """
+            SELECT 
+                t.id, t.data, t.descricao, t.valor, 
+                c.nome_categoria, t.id_categoria, t.moeda
+            FROM transacao t
+            JOIN categoria c ON t.id_categoria = c.id
+            ORDER BY t.data DESC
+        """
+        )
 
-        # Verificação matemática: se o contador de transações for > 0, bloqueia
-        cursor.execute("SELECT COUNT(*) FROM transacao WHERE id_conta = ?", (id,))
-        quantidade = cursor.fetchone()[0]
-
-        if quantidade > 0:
-            # Retornamos erro 400 (Bad Request) com uma mensagem clara
-            return (
-                jsonify(
-                    {
-                        "erro": f"Bloqueado: Esta conta possui {quantidade} transações atreladas. "
-                        "Exclua as transações primeiro."
-                    }
-                ),
-                400,
+        transacoes = []
+        for r in cursor.fetchall():
+            transacoes.append(
+                {
+                    "id": r[0],
+                    "data": r[1],
+                    "descricao": r[2],
+                    "valor": r[3],
+                    "categoria": r[4],
+                    "id_categoria": r[5],
+                    "moeda": r[6],
+                }
             )
-
-        cursor.execute("DELETE FROM conta WHERE id = ?", (id,))
-        banco.conn.commit()
-        return jsonify({"status": "sucesso"}), 200
+        return jsonify(transacoes)
     except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+        print(f"Erro ao listar: {e}")
+        return jsonify([]), 500
 
 
-@app.route("/api/categorias/<int:id>", methods=["DELETE"])
-def excluir_categoria(id):
+@app.route("/api/transacoes", methods=["POST"])
+def salvar_transacao():
+    dados = request.json
     try:
-        cursor = banco.conn.cursor()
-        cursor.execute("DELETE FROM categoria WHERE id = ?", (id,))
-        banco.conn.commit()
-        return jsonify({"status": "sucesso"}), 200
+        # Criamos a transação sem ID de conta
+        nova_transacao = Transacao(
+            data=dados["data"],
+            descricao=dados["descricao"],
+            valor=float(dados["valor"]),
+            moeda=dados.get("moeda", "BRL"),  # Padrão BRL se não vier
+            id_categoria=int(dados["categoria_id"]),
+        )
+        banco.adicionar_transacao(nova_transacao)
+        return jsonify({"status": "sucesso"}), 201
     except Exception as e:
+        print(f"Erro ao salvar: {e}")
         return jsonify({"erro": str(e)}), 500
 
 
 @app.route("/api/transacoes/<int:id>", methods=["DELETE"])
-def excluir_transacao(id):
+def excluir_transacao_rota(id):
     try:
         banco.excluir_transacao(id)
         return jsonify({"status": "sucesso"}), 200
@@ -188,26 +102,125 @@ def excluir_transacao(id):
         return jsonify({"erro": str(e)}), 500
 
 
-# --- ROTAS EDIT ---
+# --- NOVAS ROTAS PARA GERENCIAR CATEGORIAS ---
 
 
-@app.route("/api/contas/<int:id>", methods=["PUT"])
-def editar_conta(id):
+@app.route("/api/categorias/<int:id>", methods=["PUT"])
+def editar_categoria(id):
     dados = request.json
+    novo_nome = dados["nome"]
+    novo_tipo = dados["tipo"]
+
     try:
         cursor = banco.conn.cursor()
+
+        # 1. Atualiza o nome e o tipo da categoria
         cursor.execute(
             """
-            UPDATE conta 
-            SET nome_instituicao = ?, moeda = ?, saldo_inicial = ?, tipo_conta = ?
+            UPDATE categoria 
+            SET nome_categoria = ?, tipo_categoria = ?
             WHERE id = ?
         """,
-            (dados["nome"], dados["moeda"], dados["saldo"], dados["tipo"], id),
+            (novo_nome, novo_tipo, id),
         )
+
+        # 2. AJUSTE AUTOMÁTICO DE VALORES:
+        # Se virou Despesa, garantimos que todos os valores sejam negativos
+        if novo_tipo == "Despesa":
+            cursor.execute(
+                """
+                UPDATE transacao 
+                SET valor = -ABS(valor) 
+                WHERE id_categoria = ?
+            """,
+                (id,),
+            )
+
+        # Se virou Receita, garantimos que todos os valores sejam positivos
+        elif novo_tipo == "Receita":
+            cursor.execute(
+                """
+                UPDATE transacao 
+                SET valor = ABS(valor) 
+                WHERE id_categoria = ?
+            """,
+                (id,),
+            )
+
         banco.conn.commit()
         return jsonify({"status": "sucesso"}), 200
     except Exception as e:
-        print(f"Erro ao editar conta: {e}")
+        banco.conn.rollback()
+        print(f"Erro ao atualizar categoria: {e}")
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/api/categorias/<int:id>", methods=["DELETE"])
+def excluir_categoria(id):
+    try:
+        cursor = banco.conn.cursor()
+
+        # 1. Verifica se tem transações usando essa categoria
+        cursor.execute("SELECT COUNT(*) FROM transacao WHERE id_categoria = ?", (id,))
+        qtd = cursor.fetchone()[0]
+
+        if qtd > 0:
+            return (
+                jsonify(
+                    {
+                        "erro": f"Essa categoria tem {qtd} transações. Exclua as transações antes."
+                    }
+                ),
+                400,
+            )
+
+        # 2. Se estiver livre, exclui
+        cursor.execute("DELETE FROM categoria WHERE id = ?", (id,))
+        banco.conn.commit()
+        return jsonify({"status": "sucesso"}), 200
+    except Exception as e:
+        return jsonify({"erro": str(e)}), 500
+
+
+@app.route("/api/transacoes/<int:id>", methods=["PUT"])
+def editar_transacao(id):
+    dados = request.json
+    try:
+        cursor = banco.conn.cursor()
+
+        # 1. Pegamos o tipo da categoria para garantir o sinal do valor
+        cursor.execute(
+            "SELECT tipo_categoria FROM categoria WHERE id = ?",
+            (dados["categoria_id"],),
+        )
+        tipo = cursor.fetchone()[0]
+
+        valor = float(dados["valor"])
+        if tipo == "Despesa":
+            valor = -abs(valor)
+        else:
+            valor = abs(valor)
+
+        # 2. Atualizamos a transação
+        cursor.execute(
+            """
+            UPDATE transacao 
+            SET data = ?, descricao = ?, valor = ?, moeda = ?, id_categoria = ?
+            WHERE id = ?
+        """,
+            (
+                dados["data"],
+                dados["descricao"],
+                valor,
+                dados["moeda"],
+                dados["categoria_id"],
+                id,
+            ),
+        )
+
+        banco.conn.commit()
+        return jsonify({"status": "sucesso"}), 200
+    except Exception as e:
         return jsonify({"erro": str(e)}), 500
 
 

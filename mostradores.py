@@ -1,17 +1,8 @@
 def mostrar_menu():
     print("\n--- GERENCIADOR FINANCEIRO ---")
-    print("1. Menu Conta")
-    print("2. Menu Categoria")
-    print("3. Menu Transação")
+    print("1. Menu Categoria")
+    print("2. Menu Transação")
     print("0. Sair")
-
-
-def mostrar_menu_contas():
-    print("\n--- CONTAS ---")
-    print("1. Registrar Conta")
-    print("2. Exibir Contas")
-    print("3. Editar Contas")
-    print("0. Voltar")
 
 
 def mostrar_menu_categorias():
