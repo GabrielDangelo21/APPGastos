@@ -1,0 +1,19 @@
+{
+    "transacoes": [
+        {
+            "id": 1,
+            "data": "2026-02-08",
+            "valor": -50.0,
+            "descricao": "Teste",
+            "moeda": "BRL",
+            "categoria_id": 1
+        }
+    ],
+    "categorias": [
+        {
+            "id": 1,
+            "nome": "Eletrônicos",
+            "tipo": "Despesa"
+        }
+    ]
+}
