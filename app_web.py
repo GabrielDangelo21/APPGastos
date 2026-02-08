@@ -1,9 +1,52 @@
-from flask import Flask, render_template, jsonify, request
-from classes import GerenciadorFinancas, Transacao, Categoria
+from flask import Flask, render_template, request, jsonify
+import json
+import os
+from datetime import datetime
 
 app = Flask(__name__)
-# Instancia o banco
-banco = GerenciadorFinancas("receitas_despesas.db")
+
+# Nome do arquivo onde os dados serão salvos
+ARQUIVO_DADOS = "dados.json"
+
+# --- FUNÇÕES AUXILIARES (Para ler e salvar no JSON) ---
+
+
+def carregar_dados():
+    """Lê o arquivo JSON. Se não existir, cria a estrutura padrão."""
+    if not os.path.exists(ARQUIVO_DADOS):
+        dados_iniciais = {
+            "transacoes": [],
+            "categorias": [
+                {"id": 1, "nome": "Alimentação", "tipo": "Despesa"},
+                {"id": 2, "nome": "Salário", "tipo": "Receita"},
+                {"id": 3, "nome": "Lazer", "tipo": "Despesa"},
+            ],
+        }
+        salvar_dados(dados_iniciais)
+        return dados_iniciais
+
+    try:
+        with open(ARQUIVO_DADOS, "r", encoding="utf-8") as f:
+            return json.load(f)
+    except json.JSONDecodeError:
+        return {"transacoes": [], "categorias": []}
+
+
+def salvar_dados(dados):
+    """Escreve os dados no arquivo JSON."""
+    with open(ARQUIVO_DADOS, "w", encoding="utf-8") as f:
+        json.dump(dados, f, indent=4, ensure_ascii=False)
+
+
+def gerar_novo_id(lista_itens):
+    """Simula o AutoIncrement do banco de dados"""
+    if not lista_itens:
+        return 1
+    # Pega o maior ID existente e soma 1
+    return max(item["id"] for item in lista_itens) + 1
+
+
+# --- ROTAS DA APLICAÇÃO ---
 
 
 @app.route("/")
@@ -11,218 +54,149 @@ def index():
     return render_template("index.html")
 
 
-# --- ROTA DE CATEGORIAS (Simples e Direta) ---
-@app.route("/api/categorias", methods=["GET"])
-def listar_categorias():
-    try:
-        cursor = banco.conn.cursor()
-        cursor.execute("SELECT id, nome_categoria, tipo_categoria FROM categoria")
-        categorias = [
-            {"id": r[0], "nome_categoria": r[1], "tipo": r[2]}
-            for r in cursor.fetchall()
-        ]
-        return jsonify(categorias)
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+# --- API: TRANSAÇÕES ---
 
 
-@app.route("/api/categorias", methods=["POST"])
-def salvar_categoria():
-    dados = request.json
-    try:
-        nova_cat = Categoria(dados["nome"], dados["tipo"])
-        banco.adicionar_categoria(nova_cat)
-        return jsonify({"status": "sucesso"}), 201
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
-
-
-# --- ROTAS DE TRANSAÇÕES (Sem vínculos com Contas) ---
 @app.route("/api/transacoes", methods=["GET"])
-def listar_transacoes():
-    try:
-        cursor = banco.conn.cursor()
-        # Query simplificada: Sem JOIN com conta, pegando a moeda direto da transação (se existir)
-        # Assumindo que você manteve 'moeda' na transação ou vai usar padrão BRL
-        cursor.execute(
-            """
-            SELECT 
-                t.id, t.data, t.descricao, t.valor, 
-                c.nome_categoria, t.id_categoria, t.moeda
-            FROM transacao t
-            JOIN categoria c ON t.id_categoria = c.id
-            ORDER BY t.data DESC
-        """
-        )
+def get_transacoes():
+    dados = carregar_dados()
+    # Adicionamos o nome da categoria em cada transação para facilitar o frontend
+    lista_completa = []
 
-        transacoes = []
-        for r in cursor.fetchall():
-            transacoes.append(
-                {
-                    "id": r[0],
-                    "data": r[1],
-                    "descricao": r[2],
-                    "valor": r[3],
-                    "categoria": r[4],
-                    "id_categoria": r[5],
-                    "moeda": r[6],
-                }
-            )
-        return jsonify(transacoes)
-    except Exception as e:
-        print(f"Erro ao listar: {e}")
-        return jsonify([]), 500
+    # Cria um dicionário para achar nomes de categorias rápido: {1: "Alimentação", 2: "Salário"}
+    mapa_categorias = {c["id"]: c["nome"] for c in dados["categorias"]}
+
+    for t in dados["transacoes"]:
+        t_copia = t.copy()
+        # Se a categoria existir, coloca o nome, senão "Desconhecida"
+        t_copia["categoria"] = mapa_categorias.get(t["categoria_id"], "Desconhecida")
+        lista_completa.append(t_copia)
+
+    return jsonify(lista_completa)
 
 
 @app.route("/api/transacoes", methods=["POST"])
-def salvar_transacao():
-    dados = request.json
-    try:
-        # Criamos a transação sem ID de conta
-        nova_transacao = Transacao(
-            data=dados["data"],
-            descricao=dados["descricao"],
-            valor=float(dados["valor"]),
-            moeda=dados.get("moeda", "BRL"),  # Padrão BRL se não vier
-            id_categoria=int(dados["categoria_id"]),
-        )
-        banco.adicionar_transacao(nova_transacao)
-        return jsonify({"status": "sucesso"}), 201
-    except Exception as e:
-        print(f"Erro ao salvar: {e}")
-        return jsonify({"erro": str(e)}), 500
+def add_transacao():
+    novo_item = request.json
+    dados = carregar_dados()
+
+    # Cria a nova transação
+    nova_transacao = {
+        "id": gerar_novo_id(dados["transacoes"]),
+        "data": novo_item["data"],
+        "valor": float(novo_item["valor"]),
+        "descricao": novo_item["descricao"],
+        "moeda": novo_item["moeda"],
+        "categoria_id": int(novo_item["categoria_id"]),
+    }
+
+    dados["transacoes"].append(nova_transacao)
+    salvar_dados(dados)
+
+    return jsonify({"mensagem": "Transação salva!", "id": nova_transacao["id"]}), 201
 
 
 @app.route("/api/transacoes/<int:id>", methods=["DELETE"])
-def excluir_transacao_rota(id):
-    try:
-        banco.excluir_transacao(id)
-        return jsonify({"status": "sucesso"}), 200
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+def delete_transacao(id):
+    dados = carregar_dados()
 
+    # Filtra a lista mantendo apenas quem NÃO tem o ID informado
+    nova_lista = [t for t in dados["transacoes"] if t["id"] != id]
 
-# --- NOVAS ROTAS PARA GERENCIAR CATEGORIAS ---
+    if len(nova_lista) == len(dados["transacoes"]):
+        return jsonify({"erro": "Transação não encontrada"}), 404
 
-
-@app.route("/api/categorias/<int:id>", methods=["PUT"])
-def editar_categoria(id):
-    dados = request.json
-    novo_nome = dados["nome"]
-    novo_tipo = dados["tipo"]
-
-    try:
-        cursor = banco.conn.cursor()
-
-        # 1. Atualiza o nome e o tipo da categoria
-        cursor.execute(
-            """
-            UPDATE categoria 
-            SET nome_categoria = ?, tipo_categoria = ?
-            WHERE id = ?
-        """,
-            (novo_nome, novo_tipo, id),
-        )
-
-        # 2. AJUSTE AUTOMÁTICO DE VALORES:
-        # Se virou Despesa, garantimos que todos os valores sejam negativos
-        if novo_tipo == "Despesa":
-            cursor.execute(
-                """
-                UPDATE transacao 
-                SET valor = -ABS(valor) 
-                WHERE id_categoria = ?
-            """,
-                (id,),
-            )
-
-        # Se virou Receita, garantimos que todos os valores sejam positivos
-        elif novo_tipo == "Receita":
-            cursor.execute(
-                """
-                UPDATE transacao 
-                SET valor = ABS(valor) 
-                WHERE id_categoria = ?
-            """,
-                (id,),
-            )
-
-        banco.conn.commit()
-        return jsonify({"status": "sucesso"}), 200
-    except Exception as e:
-        banco.conn.rollback()
-        print(f"Erro ao atualizar categoria: {e}")
-        return jsonify({"erro": str(e)}), 500
-
-
-@app.route("/api/categorias/<int:id>", methods=["DELETE"])
-def excluir_categoria(id):
-    try:
-        cursor = banco.conn.cursor()
-
-        # 1. Verifica se tem transações usando essa categoria
-        cursor.execute("SELECT COUNT(*) FROM transacao WHERE id_categoria = ?", (id,))
-        qtd = cursor.fetchone()[0]
-
-        if qtd > 0:
-            return (
-                jsonify(
-                    {
-                        "erro": f"Essa categoria tem {qtd} transações. Exclua as transações antes."
-                    }
-                ),
-                400,
-            )
-
-        # 2. Se estiver livre, exclui
-        cursor.execute("DELETE FROM categoria WHERE id = ?", (id,))
-        banco.conn.commit()
-        return jsonify({"status": "sucesso"}), 200
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+    dados["transacoes"] = nova_lista
+    salvar_dados(dados)
+    return jsonify({"mensagem": "Deletado com sucesso"})
 
 
 @app.route("/api/transacoes/<int:id>", methods=["PUT"])
-def editar_transacao(id):
-    dados = request.json
-    try:
-        cursor = banco.conn.cursor()
+def edit_transacao(id):
+    item_editado = request.json
+    dados = carregar_dados()
 
-        # 1. Pegamos o tipo da categoria para garantir o sinal do valor
-        cursor.execute(
-            "SELECT tipo_categoria FROM categoria WHERE id = ?",
-            (dados["categoria_id"],),
+    for t in dados["transacoes"]:
+        if t["id"] == id:
+            t["data"] = item_editado["data"]
+            t["valor"] = float(item_editado["valor"])
+            t["descricao"] = item_editado["descricao"]
+            t["moeda"] = item_editado["moeda"]
+            t["categoria_id"] = int(item_editado["categoria_id"])
+
+            salvar_dados(dados)
+            return jsonify({"mensagem": "Atualizado com sucesso"})
+
+    return jsonify({"erro": "Transação não encontrada"}), 404
+
+
+# --- API: CATEGORIAS ---
+
+
+@app.route("/api/categorias", methods=["GET"])
+def get_categorias():
+    dados = carregar_dados()
+    # Mapeamos para retornar "nome_categoria" para compatibilidade com seu JS antigo
+    resultado = []
+    for c in dados["categorias"]:
+        resultado.append(
+            {
+                "id": c["id"],
+                "nome_categoria": c["nome"],  # O JS espera 'nome_categoria'
+                "tipo": c.get("tipo", "Despesa"),
+            }
         )
-        tipo = cursor.fetchone()[0]
+    return jsonify(resultado)
 
-        valor = float(dados["valor"])
-        if tipo == "Despesa":
-            valor = -abs(valor)
-        else:
-            valor = abs(valor)
 
-        # 2. Atualizamos a transação
-        cursor.execute(
-            """
-            UPDATE transacao 
-            SET data = ?, descricao = ?, valor = ?, moeda = ?, id_categoria = ?
-            WHERE id = ?
-        """,
-            (
-                dados["data"],
-                dados["descricao"],
-                valor,
-                dados["moeda"],
-                dados["categoria_id"],
-                id,
-            ),
-        )
+@app.route("/api/categorias", methods=["POST"])
+def add_categoria():
+    nova_cat_req = request.json
+    dados = carregar_dados()
 
-        banco.conn.commit()
-        return jsonify({"status": "sucesso"}), 200
-    except Exception as e:
-        return jsonify({"erro": str(e)}), 500
+    nova_categoria = {
+        "id": gerar_novo_id(dados["categorias"]),
+        "nome": nova_cat_req["nome"],
+        "tipo": nova_cat_req["tipo"],
+    }
+
+    dados["categorias"].append(nova_categoria)
+    salvar_dados(dados)
+    return jsonify({"mensagem": "Categoria criada!"}), 201
+
+
+@app.route("/api/categorias/<int:id>", methods=["DELETE"])
+def delete_categoria(id):
+    dados = carregar_dados()
+
+    # Verifica se tem transação usando essa categoria
+    tem_uso = any(t["categoria_id"] == id for t in dados["transacoes"])
+    if tem_uso:
+        return jsonify({"erro": "Não é possível excluir: Categoria em uso!"}), 400
+
+    nova_lista = [c for c in dados["categorias"] if c["id"] != id]
+    dados["categorias"] = nova_lista
+    salvar_dados(dados)
+
+    return jsonify({"mensagem": "Categoria excluída"})
+
+
+@app.route("/api/categorias/<int:id>", methods=["PUT"])
+def edit_categoria(id):
+    req = request.json
+    dados = carregar_dados()
+
+    for c in dados["categorias"]:
+        if c["id"] == id:
+            c["nome"] = req["nome"]
+            c["tipo"] = req["tipo"]
+            salvar_dados(dados)
+            return jsonify({"mensagem": "Categoria atualizada"})
+
+    return jsonify({"erro": "Categoria não encontrada"}), 404
 
 
 if __name__ == "__main__":
+    # Cria o arquivo vazio ao iniciar, se não existir
+    carregar_dados()
     app.run(debug=True)
